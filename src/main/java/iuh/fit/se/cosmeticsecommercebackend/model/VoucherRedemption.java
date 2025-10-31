@@ -23,10 +23,6 @@ public class VoucherRedemption {
     @JoinColumn(name = "voucher_id")
     private Voucher voucher;
 
-    @ManyToOne
-    @JoinColumn(name = "customer_id")
-    private Customer customer;
-
     @ManyToOne(optional = false)
     @JoinColumn(name = "order_id")
     private Order order;
