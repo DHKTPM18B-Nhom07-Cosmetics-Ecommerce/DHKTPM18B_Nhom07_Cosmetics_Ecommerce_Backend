@@ -1,7 +1,6 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.OrderStatus;
-import iuh.fit.se.cosmeticsecommercebackend.model.enums.PaymentMethod;
 import jakarta.persistence.*;
 import lombok.*;
 
