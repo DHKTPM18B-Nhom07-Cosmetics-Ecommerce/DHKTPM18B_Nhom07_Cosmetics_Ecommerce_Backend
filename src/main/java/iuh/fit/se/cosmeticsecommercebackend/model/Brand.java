@@ -1,5 +1,6 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -16,7 +17,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = "products")
+@EqualsAndHashCode(exclude = {"products", "vouchers"})
 public class Brand {
     
     @Id
@@ -43,7 +44,17 @@ public class Brand {
      * orphanRemoval = true: tự động xóa Product khi bị remove khỏi collection
      */
     @OneToMany(mappedBy = "brand", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore //tránh vòng lặp JSON khi trả response
     private List<Product> products = new ArrayList<>();
 
+
+    /* 1-N với Voucher
+    một brand có thể có nhiều voucher riêng
+    thêm liên kết 2 chiều với voucher, dùng fetch để tối uu hiệu năng
+    JsonIgnore //tránh vòng lặp JSON khi trả response
+    */
+    @OneToMany(mappedBy = "brand", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JsonIgnore
+    private List<Voucher> vouchers = new ArrayList<>();
 }
 
