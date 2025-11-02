@@ -1,8 +1,8 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.VoucherScope;
-import iuh.fit.se.cosmeticsecommercebackend.model.enums.VoucherStatus;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.VoucherType;
+import iuh.fit.se.cosmeticsecommercebackend.model.enums.VoucherStatus;
 import jakarta.persistence.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.math.BigDecimal;
