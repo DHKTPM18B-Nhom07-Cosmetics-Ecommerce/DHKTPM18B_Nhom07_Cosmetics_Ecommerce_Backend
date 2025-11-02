@@ -15,8 +15,9 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = "account")
-@EqualsAndHashCode(exclude = "account")
+@ToString(exclude = {"account"})
+@EqualsAndHashCode(exclude = {"account"})
+
 public class Employee {
     
     @Id
@@ -29,8 +30,33 @@ public class Employee {
      */
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id", nullable = false, unique = true)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Account account;
-    
+
+    public Account getAccount() {
+        return account;
+    }
+
+    public void setAccount(Account account) {
+        this.account = account;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public LocalDateTime getHireDate() {
+        return hireDate;
+    }
+
+    public void setHireDate(LocalDateTime hireDate) {
+        this.hireDate = hireDate;
+    }
+
     @Column(nullable = false)
     private LocalDateTime hireDate;
     
