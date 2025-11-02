@@ -1,5 +1,6 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -16,7 +17,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = "products")
+@EqualsAndHashCode(exclude = {"products", "vouchers"})
 public class Category {
     
     @Id
@@ -34,8 +35,16 @@ public class Category {
      * orphanRemoval = true: tự động xóa Product khi bị remove khỏi collection
      */
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Product> products = new ArrayList<>();
-    
 
+    /*
+     * Quan hệ 1-N với Voucher
+     * mappedBy = "category" tham chiếu thuộc tính trong Voucher entity
+     * Không orphanRemoval để tránh xóa nhầm voucher khi xóa category
+     * JsonIgnore giúp tránh lỗi vòng lặp khi test bằng Postman or web
+     */
+    @OneToMany(mappedBy = "category", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JsonIgnore
+    private List<Voucher> vouchers = new ArrayList<>();
 }
-

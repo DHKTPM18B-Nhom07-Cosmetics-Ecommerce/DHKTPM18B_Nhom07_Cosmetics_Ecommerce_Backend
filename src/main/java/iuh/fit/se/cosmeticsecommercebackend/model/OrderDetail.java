@@ -50,5 +50,13 @@ public class OrderDetail {
     @Column(nullable = false, precision = 12, scale = 2, name = "total_price")
     private BigDecimal totalPrice;
 
+    /**
+     * Số tiền được giảm giá cho sản phẩm này (nếu có).
+     * Trường này hỗ trợ trường hợp voucher áp dụng theo brand/category.
+     * Nếu giảm toàn đơn, discountAmount ở đây = 0.
+     */
+    @Column(name = "discount_amount", precision = 10, scale = 2)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
 }
 
