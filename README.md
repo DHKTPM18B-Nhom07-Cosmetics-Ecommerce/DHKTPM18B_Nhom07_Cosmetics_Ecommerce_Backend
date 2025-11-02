@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Hệ Thống Backend Cửa Hàng Mỹ Phẩm
 
 ## 📚 Môn học: Lập trình WWW (Java)
@@ -156,3 +157,6 @@ Mọi sự đóng góp đều được hoan nghênh! Để đơn giản hoá ch�
 ## 📝 License
 Copyright © 2025 DHKTPM18B - Lập trình WWW (Java) - Nhóm 07.
 This project is MIT licensed.
+=======
+heloo
+>>>>>>> c1ad945d54f1f0ebae84037788a52d76ccf4a2c8
