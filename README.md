@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Hệ Thống Backend Cửa Hàng Mỹ Phẩm
 
 ## 📚 Môn học: Lập trình WWW (Java)
