@@ -1,5 +1,7 @@
 package iuh.fit.se.cosmeticsecommercebackend.model.enums;
-
+/**
+ * Các loại voucher
+ */
 public enum VoucherType {
     /**
      * giảm % trên subtotal đủ điều kiện
