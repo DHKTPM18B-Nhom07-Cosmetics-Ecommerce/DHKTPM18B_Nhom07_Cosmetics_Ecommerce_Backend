@@ -9,14 +9,12 @@ import lombok.*;
  */
 @Entity
 @Table(name = "addresses")
-@Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString(exclude = "customer")
 @EqualsAndHashCode(exclude = "customer")
 public class Address {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "address_id")
@@ -29,22 +27,22 @@ public class Address {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
-    
+
     @Column(nullable = false, length = 100, name = "full_name")
     private String fullName;
-    
+
     @Column(nullable = false, length = 20)
     private String phone;
-    
+
     @Column(nullable = false, length = 255)
     private String address;
-    
+
     @Column(nullable = false, length = 100)
     private String city;
-    
+
     @Column(nullable = false, length = 100)
     private String state;
-    
+
     @Column(nullable = false, length = 100)
     private String country;
     
@@ -55,5 +53,44 @@ public class Address {
     @Column(name = "is_default")
     private boolean isDefault = false;
 
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setCustomer(Customer customer) {
+        this.customer = customer;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
+    public void setState(String state) {
+        this.state = state;
+    }
+
+    public void setCountry(String country) {
+        this.country = country;
+    }
+
+    public boolean isDefault() {
+        return isDefault;
+    }
+
+    public void setDefault(boolean aDefault) {
+        isDefault = aDefault;
+    }
 }
 

@@ -1,0 +1,14 @@
+package iuh.fit.se.cosmeticsecommercebackend.service;
+
+import iuh.fit.se.cosmeticsecommercebackend.model.ProductVariant;
+
+import java.util.List;
+
+public interface ProductVariantService {
+    List<ProductVariant> getAll();
+    ProductVariant getById(Long id);
+    List<ProductVariant> getByProductId(Long productId);
+    ProductVariant create(ProductVariant variant);
+    ProductVariant update(Long id, ProductVariant variant);
+    void delete(Long id);
+}

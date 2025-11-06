@@ -1,8 +1,10 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -57,6 +59,7 @@ public class Product {
      * mappedBy = "product" tham chiếu đến thuộc tính product trong ProductVariant entity
      */
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<ProductVariant> variants = new ArrayList<>();
 
     /**
@@ -65,15 +68,23 @@ public class Product {
      * mappedBy = "product" tham chiếu đến thuộc tính product trong Review entity
      */
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Review> reviews = new ArrayList<>();
 
+    @Column(name = "average_rating")
     private double averageRating = 0.0;
 
     @Column(name = "is_active")
-    private boolean isAactive = true;
+    private boolean isActive = true;
 
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
 
-
+    // Gán giá trị tự động khi entity được lưu lần đầu
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
     /**
      * Helper method để tính toán lại averageRating
      * Được gọi sau khi thêm/xóa/cập nhật review
