@@ -49,7 +49,7 @@ public class ReviewController {
     /** GET /api/reviews : Lay tat ca danh gia */
     @GetMapping
     public List<Review> getAllReviews() {
-        return reviewService.findAll();
+        return reviewService.getAll();
     }
 
     /** PUT /api/reviews/{id} : Cap nhat noi dung danh gia */

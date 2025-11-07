@@ -7,7 +7,7 @@ public interface BrandService {
     //CRUD co ban
     Brand createBrand(Brand brand);
     Brand findById(Long id);
-    List<Brand> findAll();
+    List<Brand> getAll();
     Brand updateBrand(Long id, Brand brandDetails);
     void deleteBrand(Long id);  //chi xoa mem (set isActive = false)
     

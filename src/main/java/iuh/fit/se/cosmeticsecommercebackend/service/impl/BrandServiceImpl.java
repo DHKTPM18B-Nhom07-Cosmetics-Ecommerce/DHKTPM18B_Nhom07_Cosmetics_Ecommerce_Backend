@@ -30,7 +30,7 @@ public class BrandServiceImpl implements BrandService {
     }
 
     @Override
-    public List<Brand> findAll() {
+    public List<Brand> getAll() {
         return brandRepository.findAll();
     }
 
