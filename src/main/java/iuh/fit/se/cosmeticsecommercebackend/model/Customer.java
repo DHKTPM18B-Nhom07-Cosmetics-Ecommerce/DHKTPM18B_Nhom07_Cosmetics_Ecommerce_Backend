@@ -1,5 +1,6 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
@@ -19,6 +20,7 @@ import java.util.List;
 @AllArgsConstructor
 @ToString(exclude = {"account", "addresses", "cart", "wishlistItems", "orders", "reviews"})
 @EqualsAndHashCode(exclude = {"account", "addresses", "cart", "wishlistItems", "orders", "reviews"})
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Customer {
     
     @Id
@@ -31,13 +33,14 @@ public class Customer {
      */
     @Column(nullable = false, length = 100)
     private String name;
-    
+
     /**
      * Quan hệ 1-1 với Account
      * 1 Customer có 1 Account
      */
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id", nullable = false, unique = true)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Account account;
     
     /**
@@ -101,6 +104,14 @@ public class Customer {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public Account getAccount() {
