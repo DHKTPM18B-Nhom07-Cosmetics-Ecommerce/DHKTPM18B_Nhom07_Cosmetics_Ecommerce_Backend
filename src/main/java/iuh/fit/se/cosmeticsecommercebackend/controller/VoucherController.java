@@ -24,7 +24,7 @@ public class VoucherController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Voucher> getVoucherById(@PathVariable Long id) {
-        return service.getById(id)
+        return service.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

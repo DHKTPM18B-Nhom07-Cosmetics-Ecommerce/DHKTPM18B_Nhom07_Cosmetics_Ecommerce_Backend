@@ -22,7 +22,7 @@ public class VoucherRedemptionServiceImpl implements VoucherRedemptionService {
     }
 
     @Override
-    public Optional<VoucherRedemption> getById(Long id) {
+    public Optional<VoucherRedemption> findById(Long id) {
         return repo.findById(id);
     }
 

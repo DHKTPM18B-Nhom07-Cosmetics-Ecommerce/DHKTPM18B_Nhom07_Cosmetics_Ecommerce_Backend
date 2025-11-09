@@ -6,7 +6,7 @@ import java.util.Optional;
 
 public interface VoucherRedemptionService {
     List<VoucherRedemption> getAll();
-    Optional<VoucherRedemption> getById(Long id);
+    Optional<VoucherRedemption> findById(Long id);
     VoucherRedemption create(VoucherRedemption redemption);
     VoucherRedemption update(Long id, VoucherRedemption redemption);
     void delete(Long id);

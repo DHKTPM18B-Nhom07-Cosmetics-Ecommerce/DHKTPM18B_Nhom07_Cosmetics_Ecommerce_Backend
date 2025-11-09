@@ -27,7 +27,7 @@ public class VoucherServiceImpl implements VoucherService {
     }
 
     @Override
-    public Optional<Voucher> getById(Long id) {
+    public Optional<Voucher> findById(Long id) {
         return repo.findById(id).map(v -> {
             updateStatusIfNeeded(v);
             return v;
