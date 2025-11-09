@@ -11,4 +11,10 @@ public interface ProductVariantService {
     ProductVariant create(ProductVariant variant);
     ProductVariant update(Long id, ProductVariant variant);
     void delete(Long id);
+    /**
+     * Tăng tồn kho của biến thể sản phẩm sau khi đơn hàng bị hủy hoặc trả hàng.
+     * @param variantId ID của biến thể sản phẩm
+     * @param quantity Số lượng cần hoàn trả/tăng thêm
+     */
+    void increaseStock(Long variantId, int quantity);
 }

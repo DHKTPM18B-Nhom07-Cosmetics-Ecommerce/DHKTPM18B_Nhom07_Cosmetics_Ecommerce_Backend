@@ -18,8 +18,6 @@ import java.util.List;
 @Table(name = "orders")
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
 @ToString(exclude = {"customer", "employee", "orderDetails", "reviews"})
 @EqualsAndHashCode(exclude = {"customer", "employee", "orderDetails", "reviews"})
 public class Order {
@@ -44,7 +42,13 @@ public class Order {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id")
     private Employee employee;
-
+    /**
+     * Quan hệ n-1 với Address
+     * Nhiều Order có thể cùng 1 Address
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "address_id", nullable = false)
+    private Address address;
     
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal total;
@@ -59,7 +63,9 @@ public class Order {
     private LocalDateTime canceledAt;
     
     @Column(nullable = false)
-    private LocalDateTime orderDate;
+    private LocalDateTime orderDate=LocalDateTime.now();
+    @Column(name = "shipping_fee", nullable = false, precision = 10, scale = 2)
+    private BigDecimal shippingFee = new BigDecimal("30000.00");
 
     /**
      * Quan hệ 1-n với OrderDetail
@@ -68,6 +74,73 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<OrderDetail> orderDetails = new ArrayList<>();
 
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<VoucherRedemption> voucherRedemptions = new ArrayList<>();
 
+    public Order() {
+    }
+
+    public Order(Long id, Customer customer, Employee employee, Address address, BigDecimal total, OrderStatus status, String cancelReason, LocalDateTime canceledAt, LocalDateTime orderDate, BigDecimal shippingFee, List<OrderDetail> orderDetails, List<VoucherRedemption> voucherRedemptions) {
+        this.id = id;
+        this.customer = customer;
+        this.employee = employee;
+        this.address = address;
+        this.total = total;
+        this.status = status;
+        this.cancelReason = cancelReason;
+        this.canceledAt = canceledAt;
+        this.orderDate = orderDate;
+        this.shippingFee = shippingFee;
+        this.orderDetails = orderDetails;
+        this.voucherRedemptions = voucherRedemptions;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public Customer getCustomer() {
+        return customer;
+    }
+
+    public Employee getEmployee() {
+        return employee;
+    }
+
+    public Address getAddress() {
+        return address;
+    }
+
+    public BigDecimal getTotal() {
+        return total;
+    }
+
+    public OrderStatus getStatus() {
+        return status;
+    }
+
+    public String getCancelReason() {
+        return cancelReason;
+    }
+
+    public LocalDateTime getCanceledAt() {
+        return canceledAt;
+    }
+
+    public LocalDateTime getOrderDate() {
+        return orderDate;
+    }
+
+    public BigDecimal getShippingFee() {
+        return shippingFee;
+    }
+
+    public List<OrderDetail> getOrderDetails() {
+        return orderDetails;
+    }
+
+    public List<VoucherRedemption> getVoucherRedemptions() {
+        return voucherRedemptions;
+    }
 }
 

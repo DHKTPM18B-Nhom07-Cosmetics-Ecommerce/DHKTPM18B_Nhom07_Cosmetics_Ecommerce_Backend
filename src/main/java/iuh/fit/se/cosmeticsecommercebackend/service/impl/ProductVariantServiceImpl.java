@@ -1,5 +1,6 @@
 package iuh.fit.se.cosmeticsecommercebackend.service.impl;
 
+import iuh.fit.se.cosmeticsecommercebackend.exception.ResourceNotFoundException;
 import iuh.fit.se.cosmeticsecommercebackend.model.Product;
 import iuh.fit.se.cosmeticsecommercebackend.model.ProductVariant;
 import iuh.fit.se.cosmeticsecommercebackend.repository.ProductRepository;
@@ -82,5 +83,21 @@ public class ProductVariantServiceImpl implements ProductVariantService {
             throw new EntityNotFoundException("Không tìm thấy biến thể có ID = " + id);
         }
         variantRepository.deleteById(id);
+    }
+    @Override
+    public void increaseStock(Long variantId, int quantity) {
+        //  Kiểm tra tham số đầu vào
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Số lượng hoàn kho phải là số dương.");
+        }
+
+        // Tìm ProductVariant theo ID
+        ProductVariant variant = variantRepository.findById(variantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy biến thể sản phẩm ID: " + variantId));
+        // Lấy tồn kho hiện tại và cộng thêm số lượng hoàn trả
+        variant.setQuantity(variant.getQuantity() + quantity);
+
+        // Lưu thay đổi vào cơ sở dữ liệu
+        variantRepository.save(variant);
     }
 }
