@@ -153,7 +153,6 @@ public class Customer {
     public void setReviews(List<Review> reviews) {
         this.reviews = reviews;
     }
-
     public List<CustomerVoucher> getCustomerVouchers() {
         return customerVouchers;
     }
