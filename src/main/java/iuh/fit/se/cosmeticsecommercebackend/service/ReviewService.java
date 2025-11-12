@@ -11,7 +11,7 @@ public interface ReviewService {
     //CRUD co ban
     Review createReview(Review review);
     Review findById(Long id);
-    List<Review> findAll();
+    List<Review> getAll();
     Review updateReview(Long id, Review reviewDetails);
     void deleteReview(Long id);  //chi xoa mem (set active = false)
     

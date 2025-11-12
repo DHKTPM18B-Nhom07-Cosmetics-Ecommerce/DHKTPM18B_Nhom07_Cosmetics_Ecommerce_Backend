@@ -45,7 +45,7 @@ public class BrandController {
     /** GET /api/brands : Lay tat ca thuong hieu */
     @GetMapping
     public List<Brand> getAllBrands() {
-        return brandService.findAll();
+        return brandService.getAll();
     }
 
     /** PUT /api/brands/{id} : Cap nhat thong tin thuong hieu */
@@ -85,7 +85,7 @@ public class BrandController {
         } else if (active != null) {
             return brandService.findByActive(active);
         }
-        return brandService.findAll();
+        return brandService.getAll();
     }
 
     // --- THAY DOI TRANG THAI ---
