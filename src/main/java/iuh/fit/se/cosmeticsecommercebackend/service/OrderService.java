@@ -12,7 +12,7 @@ import java.util.List;
 public interface OrderService {
     Order createOrder(Order order);
 
-    List<Order> findAll();
+    List<Order> getAll();
 
     Order findById(long id);
 
@@ -33,12 +33,16 @@ public interface OrderService {
     List<Order> findByTotalBetween(BigDecimal minTotal, BigDecimal maxTotal);
 
     //NGHIEP VU XU LY TRANG THAI
-    //huy don hang - chuyen sang Cancelled
-    Order cancelOrder(long id, String cancelReason, Employee employee);
+    //huy don hang boi nhan vien
+    Order cancelByEmployee(Long id, String cancelReason, Employee employee);
+    //khach hang yeu cau huy don hang
+    Order cancelByCustomer(Long orderId, String cancelReason, Customer customer);
     //yeu cau hoan tra
     Order requestReturn(Long id, String returnReason, Employee employee);
     //hoan tat xu ly hoan tien
     Order processRefund(Long id, Employee employee);
     //thay doi trang thai theo quy trinh nghiep vu
     Order updateStatus(Long id, OrderStatus newStatus, String cancelReason, Employee employee);
+    //tinh tong tien don hang dua tren chi tiet don hang
+    BigDecimal calculateTotal(Long orderId);
 }
