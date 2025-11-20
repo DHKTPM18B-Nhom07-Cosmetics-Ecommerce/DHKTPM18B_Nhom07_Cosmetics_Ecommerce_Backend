@@ -12,8 +12,6 @@ import java.math.BigDecimal;
  */
 @Entity
 @Table(name = "cart_items")
-@Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString(exclude = {"cart", "productVariant"})
@@ -45,7 +43,45 @@ public class CartItem {
     
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal subTotal = BigDecimal.ZERO;
-    
 
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Cart getCart() {
+        return cart;
+    }
+
+    public void setCart(Cart cart) {
+        this.cart = cart;
+    }
+
+    public ProductVariant getProductVariant() {
+        return productVariant;
+    }
+
+    public void setProductVariant(ProductVariant productVariant) {
+        this.productVariant = productVariant;
+    }
+
+    public int getQuantity() {
+        return quantity;
+    }
+
+    public void setQuantity(int quantity) {
+        this.quantity = quantity;
+    }
+
+    public BigDecimal getSubTotal() {
+        return subTotal;
+    }
+
+    public void setSubTotal(BigDecimal subTotal) {
+        this.subTotal = subTotal;
+    }
 }
 

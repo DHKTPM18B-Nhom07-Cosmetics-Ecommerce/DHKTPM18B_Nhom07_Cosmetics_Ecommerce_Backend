@@ -16,7 +16,6 @@ import lombok.*;
 @EqualsAndHashCode(exclude = "customer")
 public class Address {
 
-    @Getter
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "address_id")
@@ -26,33 +25,26 @@ public class Address {
      * Quan hệ n-1 với Customer
      * Nhiều Address thuộc về 1 Customer
      */
-    @Getter
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = false)
     @JsonBackReference
     private Customer customer;
 
-    @Getter
     @Column(nullable = false, length = 100, name = "full_name")
     private String fullName;
 
-    @Getter
     @Column(nullable = false, length = 20)
     private String phone;
 
-    @Getter
     @Column(nullable = false, length = 255)
     private String address;
 
-    @Getter
     @Column(nullable = false, length = 100)
     private String city;
 
-    @Getter
     @Column(nullable = false, length = 100)
     private String state;
 
-    @Getter
     @Column(nullable = false, length = 100)
     private String country;
     
@@ -101,6 +93,38 @@ public class Address {
 
     public void setDefault(boolean aDefault) {
         isDefault = aDefault;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public Customer getCustomer() {
+        return customer;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    public String getCountry() {
+        return country;
     }
 }
 

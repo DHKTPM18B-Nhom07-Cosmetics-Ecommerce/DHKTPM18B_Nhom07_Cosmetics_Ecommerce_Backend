@@ -5,7 +5,6 @@ import iuh.fit.se.cosmeticsecommercebackend.model.Customer;
 import iuh.fit.se.cosmeticsecommercebackend.repository.CustomerRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.AddressService;
 import jakarta.persistence.EntityNotFoundException;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,12 +13,15 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/addresses")
-@RequiredArgsConstructor
 public class AddressController {
 
     private final AddressService addressService;
     private final CustomerRepository customerRepository;
 
+    public AddressController(AddressService addressService, CustomerRepository customerRepository) {
+        this.addressService = addressService;
+        this.customerRepository = customerRepository;
+    }
     // Lấy tất cả địa chỉ
     @GetMapping
     public ResponseEntity<List<Address>> getAllAddresses() {

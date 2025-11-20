@@ -2,8 +2,6 @@ package iuh.fit.se.cosmeticsecommercebackend.controller;
 
 import iuh.fit.se.cosmeticsecommercebackend.model.Employee;
 import iuh.fit.se.cosmeticsecommercebackend.service.EmployeeService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,10 +9,9 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/employees") // Đặt version cho API
-
 public class EmployeeController {
     private final EmployeeService employeeService;
-    @Autowired
+
     public EmployeeController(EmployeeService employeeService) {
         this.employeeService = employeeService;
     }

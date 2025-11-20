@@ -16,8 +16,6 @@ import java.util.List;
  */
 @Entity
 @Table(name = "orders")
-@Getter
-@Setter
 @ToString(exclude = {"customer", "employee", "orderDetails", "reviews"})
 @EqualsAndHashCode(exclude = {"customer", "employee", "orderDetails", "reviews"})
 public class Order {
@@ -141,6 +139,54 @@ public class Order {
 
     public List<VoucherRedemption> getVoucherRedemptions() {
         return voucherRedemptions;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setCustomer(Customer customer) {
+        this.customer = customer;
+    }
+
+    public void setEmployee(Employee employee) {
+        this.employee = employee;
+    }
+
+    public void setAddress(Address address) {
+        this.address = address;
+    }
+
+    public void setTotal(BigDecimal total) {
+        this.total = total;
+    }
+
+    public void setStatus(OrderStatus status) {
+        this.status = status;
+    }
+
+    public void setCancelReason(String cancelReason) {
+        this.cancelReason = cancelReason;
+    }
+
+    public void setCanceledAt(LocalDateTime canceledAt) {
+        this.canceledAt = canceledAt;
+    }
+
+    public void setOrderDate(LocalDateTime orderDate) {
+        this.orderDate = orderDate;
+    }
+
+    public void setShippingFee(BigDecimal shippingFee) {
+        this.shippingFee = shippingFee;
+    }
+
+    public void setOrderDetails(List<OrderDetail> orderDetails) {
+        this.orderDetails = orderDetails;
+    }
+
+    public void setVoucherRedemptions(List<VoucherRedemption> voucherRedemptions) {
+        this.voucherRedemptions = voucherRedemptions;
     }
 }
 

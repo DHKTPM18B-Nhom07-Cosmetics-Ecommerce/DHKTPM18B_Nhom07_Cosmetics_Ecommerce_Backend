@@ -6,7 +6,6 @@ import iuh.fit.se.cosmeticsecommercebackend.model.Customer;
 import iuh.fit.se.cosmeticsecommercebackend.service.AccountService;
 import iuh.fit.se.cosmeticsecommercebackend.service.CustomerService;
 import jakarta.persistence.EntityNotFoundException;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,10 +14,14 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/customers")
-@RequiredArgsConstructor
 public class CustomerController {
     private final CustomerService customerService;
     private final AccountService accountService;
+
+    public CustomerController(CustomerService customerService, AccountService accountService) {
+        this.customerService = customerService;
+        this.accountService = accountService;
+    }
 
     // Lấy tất cả khách hàng
     @GetMapping

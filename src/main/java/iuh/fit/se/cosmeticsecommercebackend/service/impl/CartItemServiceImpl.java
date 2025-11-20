@@ -3,16 +3,18 @@ package iuh.fit.se.cosmeticsecommercebackend.service.impl;
 import iuh.fit.se.cosmeticsecommercebackend.model.CartItem;
 import iuh.fit.se.cosmeticsecommercebackend.repository.CartItemRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.CartItemService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class CartItemServiceImpl implements CartItemService {
 
     private final CartItemRepository cartItemRepository;
+
+    public CartItemServiceImpl(CartItemRepository cartItemRepository) {
+        this.cartItemRepository = cartItemRepository;
+    }
 
     @Override
     public List<CartItem> getAllCartItems() {
