@@ -1,9 +1,10 @@
 package iuh.fit.se.cosmeticsecommercebackend.service.impl;
 
+import iuh.fit.se.cosmeticsecommercebackend.exception.ResourceNotFoundException;
 import iuh.fit.se.cosmeticsecommercebackend.model.Category;
 import iuh.fit.se.cosmeticsecommercebackend.repository.CategoryRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.CategoryService;
-import jakarta.persistence.EntityNotFoundException;
+
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -27,7 +28,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public Category getById(Long id) {
         return categoryRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy danh mục có ID = " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục có ID = " + id));
     }
 
     @Override
@@ -38,7 +39,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public Category update(Long id, Category categoryUpdate) {
         Category existing = categoryRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy danh mục có ID = " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục có ID = " + id));
 
         existing.setName(categoryUpdate.getName());
         return categoryRepository.save(existing);
@@ -47,7 +48,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public void delete(Long id) {
         if (!categoryRepository.existsById(id)) {
-            throw new EntityNotFoundException("Không tìm thấy danh mục có ID = " + id);
+            throw new ResourceNotFoundException("Không tìm thấy danh mục có ID = " + id);
         }
         categoryRepository.deleteById(id);
     }

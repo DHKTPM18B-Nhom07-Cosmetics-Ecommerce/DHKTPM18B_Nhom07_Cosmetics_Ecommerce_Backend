@@ -1,9 +1,9 @@
 package iuh.fit.se.cosmeticsecommercebackend.service.impl;
 
+import iuh.fit.se.cosmeticsecommercebackend.exception.ResourceNotFoundException;
 import iuh.fit.se.cosmeticsecommercebackend.model.Product;
 import iuh.fit.se.cosmeticsecommercebackend.repository.ProductRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.ProductService;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -27,7 +27,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public Product getById(Long id) {
         return productRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sản phẩm có ID = " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm có ID = " + id));
     }
 
     @Override
@@ -38,7 +38,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public Product update(Long id, Product updatedProduct) {
         Product existing = productRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sản phẩm có ID = " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm có ID = " + id));
 
         existing.setName(updatedProduct.getName());
         existing.setDescription(updatedProduct.getDescription());
@@ -61,7 +61,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public void delete(Long id) {
         if (!productRepository.existsById(id)) {
-            throw new EntityNotFoundException("Không tìm thấy sản phẩm có ID = " + id);
+            throw new ResourceNotFoundException("Không tìm thấy sản phẩm có ID = " + id);
         }
         productRepository.deleteById(id);
     }

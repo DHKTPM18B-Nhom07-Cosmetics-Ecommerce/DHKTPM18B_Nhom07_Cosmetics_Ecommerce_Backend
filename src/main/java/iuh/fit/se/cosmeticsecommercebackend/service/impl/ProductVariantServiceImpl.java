@@ -6,7 +6,6 @@ import iuh.fit.se.cosmeticsecommercebackend.model.ProductVariant;
 import iuh.fit.se.cosmeticsecommercebackend.repository.ProductRepository;
 import iuh.fit.se.cosmeticsecommercebackend.repository.ProductVariantRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.ProductVariantService;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -32,13 +31,13 @@ public class ProductVariantServiceImpl implements ProductVariantService {
     @Override
     public ProductVariant getById(Long id) {
         return variantRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy biến thể có ID = " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy biến thể có ID = " + id));
     }
 
     @Override
     public List<ProductVariant> getByProductId(Long productId) {
         if (!productRepository.existsById(productId)) {
-            throw new EntityNotFoundException("Không tìm thấy sản phẩm có ID = " + productId);
+            throw new ResourceNotFoundException("Không tìm thấy sản phẩm có ID = " + productId);
         }
         return variantRepository.findByProductId(productId);
     }
@@ -51,7 +50,7 @@ public class ProductVariantServiceImpl implements ProductVariantService {
         }
 
         Product product = productRepository.findById(variant.getProduct().getId())
-                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sản phẩm có ID = " + variant.getProduct().getId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm có ID = " + variant.getProduct().getId()));
 
         variant.setProduct(product);
         return variantRepository.save(variant);
@@ -60,7 +59,7 @@ public class ProductVariantServiceImpl implements ProductVariantService {
     @Override
     public ProductVariant update(Long id, ProductVariant variantUpdate) {
         ProductVariant existing = variantRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy biến thể có ID = " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy biến thể có ID = " + id));
 
         existing.setVariantName(variantUpdate.getVariantName());
         existing.setPrice(variantUpdate.getPrice());
@@ -70,7 +69,7 @@ public class ProductVariantServiceImpl implements ProductVariantService {
         // Nếu có thay đổi product
         if (variantUpdate.getProduct() != null && variantUpdate.getProduct().getId() != null) {
             Product newProduct = productRepository.findById(variantUpdate.getProduct().getId())
-                    .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy sản phẩm có ID = " + variantUpdate.getProduct().getId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm có ID = " + variantUpdate.getProduct().getId()));
             existing.setProduct(newProduct);
         }
 
@@ -80,7 +79,7 @@ public class ProductVariantServiceImpl implements ProductVariantService {
     @Override
     public void delete(Long id) {
         if (!variantRepository.existsById(id)) {
-            throw new EntityNotFoundException("Không tìm thấy biến thể có ID = " + id);
+            throw new ResourceNotFoundException("Không tìm thấy biến thể có ID = " + id);
         }
         variantRepository.deleteById(id);
     }

@@ -1,6 +1,7 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -41,6 +42,7 @@ public class Product {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
+    @JsonIgnore
     private Category category;
 
     /**
@@ -49,6 +51,7 @@ public class Product {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "brand_id", nullable = false)
+    @JsonIgnore
     private Brand brand;
 
     /**
@@ -57,7 +60,7 @@ public class Product {
      * mappedBy = "product" tham chiếu đến thuộc tính product trong ProductVariant entity
      */
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonIgnore
+    @JsonIgnoreProperties("product")
     private List<ProductVariant> variants = new ArrayList<>();
 
     /**
