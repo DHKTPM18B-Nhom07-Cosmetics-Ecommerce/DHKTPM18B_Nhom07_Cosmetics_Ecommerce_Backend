@@ -18,6 +18,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/orders")
+@CrossOrigin(origins = "http://localhost:5173")
 public class OrderController {
     private final OrderService orderService;
     private final EmployeeService employeeService;
@@ -34,7 +35,6 @@ public class OrderController {
     /** POST /api/orders : Tạo đơn hàng mới */
     @PostMapping
     public ResponseEntity<Order> createOrder(@RequestBody Order order) {
-        // ResourceNotFoundException (từ customerService.findById) và IllegalArgumentException.
         Order newOrder = orderService.createOrder(order);
         return new ResponseEntity<>(newOrder, HttpStatus.CREATED);
     }
@@ -42,7 +42,6 @@ public class OrderController {
     /** GET /api/orders/{id} : Lấy thông tin đơn hàng theo ID */
     @GetMapping("/{id}")
     public ResponseEntity<Order> getOrderById(@PathVariable Long id) {
-        // findById sẽ ném ResourceNotFoundException (được GlobalException xử lý thành 404)
         Order order = orderService.findById(id);
         return ResponseEntity.ok(order);
     }
@@ -55,7 +54,6 @@ public class OrderController {
     /** PUT /api/orders/{id} : Cập nhật đơn hàng (Chỉ cho phép PENDING) */
     @PutMapping("/{id}")
     public ResponseEntity<Order> updateOrder(@PathVariable Long id, @RequestBody Order orderDetails) {
-        // Các ngoại lệ ResourceNotFoundException và IllegalStateException sẽ được xử lý tự động
         Order updatedOrder = orderService.updateOrder(id, orderDetails);
         return ResponseEntity.ok(updatedOrder);
     }
@@ -208,4 +206,5 @@ public class OrderController {
         BigDecimal total = orderService.calculateTotal(id);
         return ResponseEntity.ok(total);
     }
+
 }
