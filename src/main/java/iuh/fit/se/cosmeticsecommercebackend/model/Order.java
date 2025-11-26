@@ -1,6 +1,8 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -32,7 +34,6 @@ public class Order {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = false)
-    @JsonIgnore
     private Customer customer;
     
     /**
@@ -41,7 +42,6 @@ public class Order {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id")
-    @JsonIgnore
     private Employee employee;
     /**
      * Quan hệ n-1 với Address
@@ -49,7 +49,6 @@ public class Order {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "address_id", nullable = false)
-    @JsonIgnore
     private Address address;
     
     @Column(nullable = false, precision = 12, scale = 2)
@@ -74,11 +73,11 @@ public class Order {
      * 1 Order có nhiều OrderDetail (chi tiết đơn hàng)
      */
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonIgnore
+    @JsonManagedReference
     private List<OrderDetail> orderDetails = new ArrayList<>();
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonIgnore
+    @JsonBackReference
     private List<VoucherRedemption> voucherRedemptions = new ArrayList<>();
 
     public Order() {

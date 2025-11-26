@@ -14,6 +14,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/order-details")
+@CrossOrigin(origins = "http://localhost:5173")
 public class OrderDetailController {
     private final OrderDetailService orderDetailService;
     private final OrderService orderService;
@@ -58,26 +59,4 @@ public class OrderDetailController {
         OrderDetail updatedDetail = orderDetailService.updateOrderDetail(id, details);
         return ResponseEntity.ok(updatedDetail);
     }
-
-    // --- TIM KIEM THEO MQH ---
-
-    /** GET /api/order-details/order/{orderId} : Lấy tất cả chi tiết của một Order */
-    @GetMapping("/order/{orderId}")
-    public ResponseEntity<List<OrderDetail>> getDetailsByOrderId(@PathVariable Long orderId) {
-        Order order = orderService.findById(orderId);
-        // 2. Lấy chi tiết đơn hàng
-        List<OrderDetail> details = orderDetailService.getDetailsByOrder(order);
-        return ResponseEntity.ok(details);
-    }
-//    /** GET /api/order-details/variant/{variantId} : Lấy tất cả chi tiết đơn hàng theo Biến thể sản phẩm */
-//    @GetMapping("/variant/{variantId}")
-//    public ResponseEntity<List<OrderDetail>> findByProductVariant(@PathVariable Long variantId) {
-//        // Giả định có ProductVariantService.findById trả về Optional/ProductVariant
-//        // và Service này ném ResourceNotFoundException nếu không tìm thấy
-//        ProductVariant variant = productVariantService.getById(variantId)
-//                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Biến thể sản phẩm ID: " + variantId));
-//
-//        List<OrderDetail> details = orderDetailService.findByProductVariant(variant);
-//        return ResponseEntity.ok(details);
-//    }
 }

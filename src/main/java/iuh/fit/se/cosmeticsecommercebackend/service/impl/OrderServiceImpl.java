@@ -85,9 +85,42 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Order findById(long id) {
-        return orderRepo.findById(id)
+        Order order = orderRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng ID: " + id));
+        if (order.getOrderDetails() != null) {
+            order.getOrderDetails().size();
+            order.getOrderDetails().forEach(detail -> {
+                if (detail.getProductVariant() != null) {
+                    detail.getProductVariant().getId();
+                    // Buộc tải Product (nếu Product là LAZY trong ProductVariant)
+                    // if (detail.getProductVariant().getProduct() != null) {
+                    //    detail.getProductVariant().getProduct().getProductName();
+                    // }
+                }
+            });
+        }
+
+        // 2. Buộc tải Address
+        if (order.getAddress() != null) {
+            // Tải các trường cần thiết cho frontend
+            order.getAddress().getId();
+            order.getAddress().getFullName();
+            order.getAddress().getPhone();
+            order.getAddress().getAddress();
+            order.getAddress().getCity();
+            order.getAddress().getState();
+            order.getAddress().getCountry();
+        }
+
+        // 3. Buộc tải Customer
+        if (order.getCustomer() != null) {
+            order.getCustomer().getId();
+            order.getCustomer().getName();
+        }
+
+        return order;
     }
 
     @Override
