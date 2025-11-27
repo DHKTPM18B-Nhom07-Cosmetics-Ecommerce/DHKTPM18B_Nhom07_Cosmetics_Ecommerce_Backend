@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/employees") // Đặt version cho API
+@RequestMapping("/api/employees") // Đặt version cho API
 public class EmployeeController {
     private final EmployeeService employeeService;
 

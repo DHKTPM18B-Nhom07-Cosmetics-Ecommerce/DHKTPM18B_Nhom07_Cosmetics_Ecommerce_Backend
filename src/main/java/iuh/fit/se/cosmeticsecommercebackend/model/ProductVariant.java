@@ -1,5 +1,6 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -44,6 +45,7 @@ public class ProductVariant {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
+    @JsonIgnore
     private Product product;
 
     /**
@@ -51,12 +53,14 @@ public class ProductVariant {
      * Nhiều OrderDetail thuộc về 1 ProductVariant
      */
     @OneToMany(mappedBy = "productVariant", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<OrderDetail> orderDetails = new ArrayList<>();
     /**
      * Quan hệ 1-n với CartItem
      * Nhiêều CartItem thuộc về 1 ProductVariant
      */
     @OneToMany(mappedBy = "productVariant", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<CartItem> cartItems = new ArrayList<>();
     /**
      * Kiểm tra xem variant có còn hàng không
