@@ -1,5 +1,7 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
@@ -63,6 +65,7 @@ public class Customer {
      * 1 Customer có nhiều Order (đơn hàng)
      */
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonBackReference("order-customer")
     private List<Order> orders = new ArrayList<>();
 
     /**
@@ -77,6 +80,7 @@ public class Customer {
      * 1 Customer có nhiều CustomerVoucher (lưu nhiều voucher)
      */
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL)
+    @JsonIgnore
     private List<CustomerVoucher> customerVouchers;
 
     /**

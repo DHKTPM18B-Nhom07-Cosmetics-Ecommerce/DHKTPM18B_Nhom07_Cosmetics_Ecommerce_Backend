@@ -1,5 +1,7 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -14,6 +16,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class CustomerVoucher {
 
     @Id
@@ -23,10 +26,12 @@ public class CustomerVoucher {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "customer_id")
+    @JsonIgnore
     private Customer customer;
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "voucher_id")
+    @JsonIgnore
     private Voucher voucher;
 
     @Column(name = "claimed_at", nullable = false)

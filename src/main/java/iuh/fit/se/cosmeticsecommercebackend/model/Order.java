@@ -17,6 +17,26 @@ import java.util.List;
  * Quan hệ n-1 với Customer và Employee
  * Quan hệ 1-n với OrderDetail và Review
  */
+@NamedEntityGraphs({
+        @NamedEntityGraph(
+                name = "order-full-details-graph",
+                attributeNodes = {
+                        @NamedAttributeNode("customer"),
+                        @NamedAttributeNode("employee"),
+                        @NamedAttributeNode("address"),
+                        @NamedAttributeNode(value = "orderDetails", subgraph = "order-detail-subgraph"),
+                        @NamedAttributeNode("voucherRedemptions")
+                },
+                subgraphs = {
+                        @NamedSubgraph(
+                                name = "order-detail-subgraph",
+                                attributeNodes = {
+                                        @NamedAttributeNode("productVariant") // Tải ProductVariant trong OrderDetail
+                                }
+                        )
+                }
+        )
+})
 @Entity
 @Table(name = "orders")
 @ToString(exclude = {"customer", "employee", "orderDetails", "reviews"})
@@ -34,7 +54,7 @@ public class Order {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = false)
-    @JsonIgnore
+    @JsonManagedReference("order-customer")
     private Customer customer;
     
     /**
@@ -43,7 +63,6 @@ public class Order {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id")
-    @JsonIgnore
     private Employee employee;
     /**
      * Quan hệ n-1 với Address
@@ -51,7 +70,6 @@ public class Order {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "address_id", nullable = false)
-    @JsonIgnore
     private Address address;
     
     @Column(nullable = false, precision = 12, scale = 2)
@@ -80,7 +98,7 @@ public class Order {
     private List<OrderDetail> orderDetails = new ArrayList<>();
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonBackReference
+  @JsonIgnore
     private List<VoucherRedemption> voucherRedemptions = new ArrayList<>();
 
     public Order() {

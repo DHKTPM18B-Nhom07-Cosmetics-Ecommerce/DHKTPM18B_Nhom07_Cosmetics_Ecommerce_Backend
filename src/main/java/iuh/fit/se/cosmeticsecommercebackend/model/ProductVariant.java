@@ -1,6 +1,7 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -20,6 +21,7 @@ import java.util.List;
 @AllArgsConstructor
 @ToString(exclude = "product")
 @EqualsAndHashCode(exclude = "product")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class ProductVariant {
     
     @Id

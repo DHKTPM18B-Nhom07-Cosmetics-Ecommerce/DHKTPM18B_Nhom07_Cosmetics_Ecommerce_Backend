@@ -1,5 +1,8 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -11,7 +14,7 @@ import java.time.LocalDateTime;
         uniqueConstraints = @UniqueConstraint(columnNames = {"voucher_id", "order_id"})
 )
 // với thuộc tính uniqueContraints => không thể apply 1 voucher nhiều lần cho cùng đơn hàng
-
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Builder
 public class VoucherRedemption {
 
@@ -25,6 +28,7 @@ public class VoucherRedemption {
      */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "voucher_id", nullable = false)
+    @JsonIgnore
     private Voucher voucher;
 
     /**
@@ -32,6 +36,7 @@ public class VoucherRedemption {
      */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "order_id", nullable = false)
+    @JsonBackReference("order-voucher")
     private Order order;
 
     /**
@@ -40,6 +45,7 @@ public class VoucherRedemption {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")
+    @JsonIgnore
     private Customer customer;
 
     /**

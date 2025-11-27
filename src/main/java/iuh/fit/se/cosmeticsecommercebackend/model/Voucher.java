@@ -1,5 +1,6 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.VoucherScope;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.VoucherType;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.VoucherStatus;
@@ -11,6 +12,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "vouchers")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class  Voucher {
 
     @Id

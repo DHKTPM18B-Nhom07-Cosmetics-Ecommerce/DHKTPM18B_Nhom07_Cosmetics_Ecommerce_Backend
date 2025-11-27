@@ -20,6 +20,7 @@ import java.util.List;
 @AllArgsConstructor
 @ToString(exclude = {"variants", "reviews"})
 @EqualsAndHashCode(exclude = {"variants", "reviews"})
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Product {
 
     @Id

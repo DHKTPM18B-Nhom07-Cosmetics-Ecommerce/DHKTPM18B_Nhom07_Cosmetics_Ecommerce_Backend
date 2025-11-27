@@ -14,7 +14,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/order-details")
-@CrossOrigin(origins = "http://localhost:5173")
 public class OrderDetailController {
     private final OrderDetailService orderDetailService;
     private final OrderService orderService;

@@ -15,11 +15,19 @@ import java.util.Optional;
 public interface OrderRepository extends JpaRepository<Order, Long> {
     @EntityGraph(value = "order-full-details-graph", type = EntityGraph.EntityGraphType.LOAD)
     Optional<Order> findById(Long id);
-    //tim don hang theo customer:
+    @Override
+    @EntityGraph(attributePaths = {"customer", "address"})
+    List<Order> findAll();
+
+    @EntityGraph(attributePaths = {"customer", "address"})
     List<Order> findByCustomer(Customer customer);
+//    //tim don hang theo customer:
+//    List<Order> findByCustomer(Customer customer);
     //tim don hang theo employee
+
     List<Order> findByEmployee(Employee employee);
     //tim don hang theo trang thai: cho giao, dang giao, da hoan thanh, da huy...
+    @EntityGraph(attributePaths = {"customer", "address"})
     List<Order> findByStatus(OrderStatus orderStatus);
     //tim kiem don trong khoang thoi gian
     List<Order> findByOrderDateBetween(LocalDateTime startDate, LocalDateTime endDate);

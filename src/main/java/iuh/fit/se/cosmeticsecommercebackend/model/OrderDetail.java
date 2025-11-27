@@ -2,6 +2,7 @@ package iuh.fit.se.cosmeticsecommercebackend.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -18,6 +19,8 @@ import java.math.BigDecimal;
 @Setter
 @ToString(exclude = {"order", "productVariant"})
 @EqualsAndHashCode(exclude = {"order", "productVariant"})
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+
 public class OrderDetail {
     
     @Id

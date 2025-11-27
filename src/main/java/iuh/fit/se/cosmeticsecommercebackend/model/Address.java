@@ -1,6 +1,7 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -14,6 +15,7 @@ import lombok.*;
 @AllArgsConstructor
 @ToString(exclude = "customer")
 @EqualsAndHashCode(exclude = "customer")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Address {
 
     @Id
