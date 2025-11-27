@@ -1,5 +1,8 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -70,9 +73,11 @@ public class Order {
      * 1 Order có nhiều OrderDetail (chi tiết đơn hàng)
      */
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonManagedReference
     private List<OrderDetail> orderDetails = new ArrayList<>();
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonBackReference
     private List<VoucherRedemption> voucherRedemptions = new ArrayList<>();
 
     public Order() {
