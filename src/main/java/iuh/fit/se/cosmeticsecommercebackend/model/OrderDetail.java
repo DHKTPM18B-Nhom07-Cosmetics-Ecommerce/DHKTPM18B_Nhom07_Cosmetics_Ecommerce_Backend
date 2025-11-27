@@ -40,7 +40,7 @@ public class OrderDetail {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "variant_id", nullable = false)
-    @JsonIgnore
+//    @JsonIgnore
     private ProductVariant productVariant;
     
     @Column(nullable = false)

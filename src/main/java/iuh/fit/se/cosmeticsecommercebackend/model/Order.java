@@ -34,6 +34,7 @@ public class Order {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = false)
+    @JsonIgnore
     private Customer customer;
     
     /**
@@ -42,6 +43,7 @@ public class Order {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id")
+    @JsonIgnore
     private Employee employee;
     /**
      * Quan hệ n-1 với Address
@@ -49,6 +51,7 @@ public class Order {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "address_id", nullable = false)
+    @JsonIgnore
     private Address address;
     
     @Column(nullable = false, precision = 12, scale = 2)

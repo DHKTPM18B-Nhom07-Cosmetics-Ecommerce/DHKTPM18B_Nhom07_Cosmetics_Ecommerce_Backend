@@ -4,13 +4,17 @@ import iuh.fit.se.cosmeticsecommercebackend.model.Customer;
 import iuh.fit.se.cosmeticsecommercebackend.model.Employee;
 import iuh.fit.se.cosmeticsecommercebackend.model.Order;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.OrderStatus;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
+    @EntityGraph(value = "order-full-details-graph", type = EntityGraph.EntityGraphType.LOAD)
+    Optional<Order> findById(Long id);
     //tim don hang theo customer:
     List<Order> findByCustomer(Customer customer);
     //tim don hang theo employee
