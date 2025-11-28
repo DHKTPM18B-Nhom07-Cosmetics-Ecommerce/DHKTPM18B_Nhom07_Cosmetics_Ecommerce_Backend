@@ -79,4 +79,11 @@ public class AccountController {
         }
     }
 
+    // 6. READ BY USERNAME
+    @GetMapping("/by-username/{username}")
+    public ResponseEntity<Account> getAccountByUsername(@PathVariable String username) {
+        return accountService.findByUsername(username)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
 }
