@@ -35,10 +35,16 @@ public class ProductVariant {
     
     @Column(nullable = false)
     private Integer quantity;
-    
-    @Column(length = 500)
-    private String imageUrl;
-    
+
+    @ElementCollection
+    @CollectionTable(
+            name = "product_variant_images",
+            joinColumns = @JoinColumn(name = "variant_id")
+    )
+    @Column(name = "image_url", length = 500)
+    private List<String> imageUrls = new ArrayList<>();
+
+
     /**
      * Quan hệ n-1 với Product
      * Nhiều ProductVariant thuộc về 1 Product
@@ -101,12 +107,12 @@ public class ProductVariant {
         this.quantity = quantity;
     }
 
-    public String getImageUrl() {
-        return imageUrl;
+    public List<String> getImageUrls() {
+        return imageUrls;
     }
 
-    public void setImageUrl(String imageUrl) {
-        this.imageUrl = imageUrl;
+    public void setImageUrls(List<String> imageUrls) {
+        this.imageUrls = imageUrls;
     }
 
     public Product getProduct() {

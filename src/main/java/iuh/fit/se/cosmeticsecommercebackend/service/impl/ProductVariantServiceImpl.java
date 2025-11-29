@@ -64,7 +64,7 @@ public class ProductVariantServiceImpl implements ProductVariantService {
         existing.setVariantName(variantUpdate.getVariantName());
         existing.setPrice(variantUpdate.getPrice());
         existing.setQuantity(variantUpdate.getQuantity());
-        existing.setImageUrl(variantUpdate.getImageUrl());
+        existing.setImageUrls(variantUpdate.getImageUrls());
 
         // Nếu có thay đổi product
         if (variantUpdate.getProduct() != null && variantUpdate.getProduct().getId() != null) {
