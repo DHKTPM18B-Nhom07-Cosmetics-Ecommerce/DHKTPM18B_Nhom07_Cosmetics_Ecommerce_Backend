@@ -110,4 +110,47 @@ public class AuthController {
                     .body(new ErrorResponse("Đăng ký thất bại do lỗi hệ thống."));
         }
     }
+
+    /**
+     * QUÊN MẬT KHẨU: ENDPOINT 1 - Yêu cầu gửi Token qua Email
+     * @param request Chứa email
+     */
+    @PostMapping("/forgot-password-request")
+    public ResponseEntity<?> forgotPasswordRequest(@Validated @RequestBody ForgotPasswordRequest request) {
+        try {
+            authService.createPasswordResetToken(request);
+
+            // Luôn trả về 200 OK ngay cả khi email không tồn tại (để tránh rò rỉ thông tin)
+            return ResponseEntity.ok(new SuccessResponse("Mã xác nhận đã được gửi. Vui lòng kiểm tra hộp thư."));
+        } catch (IllegalArgumentException e) {
+            // Nếu xảy ra lỗi tìm thấy email (từ service), vẫn trả về thông báo chung
+            return ResponseEntity.ok(new SuccessResponse("Mã xác nhận đã được gửi. Vui lòng kiểm tra hộp thư."));
+        } catch (Exception e) {
+            System.err.println("Forgot Password Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ErrorResponse("Lỗi hệ thống khi xử lý yêu cầu."));
+        }
+    }
+
+    /**
+     * QUÊN MẬT KHẨU: ENDPOINT 2 - Đặt lại mật khẩu bằng Token
+     * @param request Chứa token và mật khẩu mới
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Validated @RequestBody ResetPasswordRequest request) {
+        try {
+            authService.resetPassword(request);
+
+            return ResponseEntity.ok(new SuccessResponse("Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới."));
+
+        } catch (IllegalArgumentException e) {
+            // Bắt lỗi Token không hợp lệ hoặc hết hạn (từ AuthService)
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("Reset Password Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ErrorResponse("Lỗi hệ thống khi đặt lại mật khẩu."));
+        }
+    }
+
+    // DTO đơn giản cho phản hồi thành công
+    private record SuccessResponse(String message) {}
 }
