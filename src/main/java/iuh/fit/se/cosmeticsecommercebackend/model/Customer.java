@@ -29,12 +29,6 @@ public class Customer {
     private Long id;
 
     /**
-     * Tên khách hàng
-     */
-    @Column(nullable = false, length = 100)
-    private String name;
-
-    /**
      * Quan hệ 1-1 với Account
      * 1 Customer có 1 Account
      */
@@ -104,14 +98,6 @@ public class Customer {
 
     public void setId(Long id) {
         this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
     }
 
     public Account getAccount() {

@@ -36,8 +36,6 @@ public class CustomerServiceImpl implements CustomerService {
         //Tìm customer hiện tại
         Customer existing = customerRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy khách hàng với id: " + id));
-        //Cập nhật các trường
-        existing.setName(customer.getName());
         return customerRepository.save(existing);
     }
 

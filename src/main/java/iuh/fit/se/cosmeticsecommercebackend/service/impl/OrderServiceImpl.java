@@ -117,7 +117,6 @@ public class OrderServiceImpl implements OrderService {
         // 3. Buộc tải Customer
         if (order.getCustomer() != null) {
             order.getCustomer().getId();
-            order.getCustomer().getName();
         }
 
         return order;

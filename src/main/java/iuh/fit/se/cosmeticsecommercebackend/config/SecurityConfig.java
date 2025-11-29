@@ -38,9 +38,8 @@ public class SecurityConfig {
     // 1. Bean để mã hóa mật khẩu
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return NoOpPasswordEncoder.getInstance();
-//        TẠM THỜI TẮT MÃ HOÁ
-//        return new BCryptPasswordEncoder();
+//        return NoOpPasswordEncoder.getInstance();
+        return new BCryptPasswordEncoder();
     }
 
     // 2. Bean quản lý xác thực

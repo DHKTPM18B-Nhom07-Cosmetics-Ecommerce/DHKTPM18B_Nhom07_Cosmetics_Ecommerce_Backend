@@ -1,11 +1,10 @@
 package iuh.fit.se.cosmeticsecommercebackend.controller;
 
 import iuh.fit.se.cosmeticsecommercebackend.model.Account;
+import iuh.fit.se.cosmeticsecommercebackend.payload.*;
+import iuh.fit.se.cosmeticsecommercebackend.service.AuthService;
 import iuh.fit.se.cosmeticsecommercebackend.repository.AccountRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.JwtService;
-import iuh.fit.se.cosmeticsecommercebackend.payload.LoginRequest;
-import iuh.fit.se.cosmeticsecommercebackend.payload.ErrorResponse;
-import iuh.fit.se.cosmeticsecommercebackend.payload.JwtResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +16,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -31,6 +31,9 @@ public class AuthController {
 
     @Autowired
     private JwtService jwtService;
+
+    @Autowired
+    private AuthService authService;
 
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
@@ -76,6 +79,35 @@ public class AuthController {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ErrorResponse("Đăng nhập thất bại do lỗi hệ thống."));
+        }
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<?> registerCustomer(@Validated @RequestBody RegisterRequest request) {
+        try {
+            // 1. Gọi Service để xử lý logic đăng ký
+            Account newAccount = authService.registerCustomer(request);
+
+            // 2. (Tùy chọn) Tự động đăng nhập sau khi đăng ký thành công:
+            // Bạn có thể gọi AuthenticationManager ở đây và trả về JWT,
+            // nhưng để đơn giản, chúng ta sẽ chỉ trả về thành công 201 Created.
+
+            // Trả về thông tin cơ bản
+            return ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .body(new AccountInfoResponse(newAccount.getFullName(), newAccount.getUsername()));
+
+        } catch (IllegalArgumentException e) {
+            // Bắt lỗi email đã tồn tại (từ Service)
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST) // 400 Bad Request
+                    .body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            // Lỗi khác (ví dụ: lỗi CSDL)
+            System.err.println("Registration Error: " + e.getMessage());
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Đăng ký thất bại do lỗi hệ thống."));
         }
     }
 }
