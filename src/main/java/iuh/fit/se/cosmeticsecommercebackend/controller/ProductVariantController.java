@@ -9,7 +9,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/variants")
-@CrossOrigin(origins = "*")
 public class ProductVariantController {
 
     private final ProductVariantService variantService;

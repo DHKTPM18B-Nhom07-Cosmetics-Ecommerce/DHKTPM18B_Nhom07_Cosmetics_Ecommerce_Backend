@@ -16,8 +16,6 @@ import java.util.List;
  */
 @Entity
 @Table(name = "products")
-@NoArgsConstructor
-@AllArgsConstructor
 @ToString(exclude = {"variants", "reviews"})
 @EqualsAndHashCode(exclude = {"variants", "reviews"})
 public class Product {

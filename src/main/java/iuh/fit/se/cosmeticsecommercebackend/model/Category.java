@@ -5,7 +5,9 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Entity đại diện cho danh mục sản phẩm
@@ -13,8 +15,6 @@ import java.util.List;
  */
 @Entity
 @Table(name = "categories")
-@NoArgsConstructor
-@AllArgsConstructor
 @EqualsAndHashCode(exclude = {"products", "vouchers"})
 public class Category {
     
@@ -36,15 +36,29 @@ public class Category {
     @JsonIgnore
     private List<Product> products = new ArrayList<>();
 
-    /*
-     * Quan hệ 1-N với Voucher
-     * mappedBy = "category" tham chiếu thuộc tính trong Voucher entity
-     * Không orphanRemoval để tránh xóa nhầm voucher khi xóa category
-     * JsonIgnore giúp tránh lỗi vòng lặp khi test bằng Postman or web
-     */
-    @OneToMany(mappedBy = "category", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    // N - N với Voucher
+    @ManyToMany(mappedBy = "categories")
     @JsonIgnore
-    private List<Voucher> vouchers = new ArrayList<>();
+    private Set<Voucher> vouchers = new HashSet<>();
+
+    public Category(Long id, String name, List<Product> products, Set<Voucher> vouchers) {
+
+        this.id = id;
+        this.name = name;
+        this.products = products;
+        this.vouchers = vouchers;
+    }
+
+    public Category() {
+    }
+
+    public Set<Voucher> getVouchers() {
+        return vouchers;
+    }
+
+    public void setVouchers(Set<Voucher> vouchers) {
+        this.vouchers = vouchers;
+    }
 
     public Long getId() {
         return id;
@@ -70,11 +84,4 @@ public class Category {
         this.products = products;
     }
 
-    public List<Voucher> getVouchers() {
-        return vouchers;
-    }
-
-    public void setVouchers(List<Voucher> vouchers) {
-        this.vouchers = vouchers;
-    }
 }
