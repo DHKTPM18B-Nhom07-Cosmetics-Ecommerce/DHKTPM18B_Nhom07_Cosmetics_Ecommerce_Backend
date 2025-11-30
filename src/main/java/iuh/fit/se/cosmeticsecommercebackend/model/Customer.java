@@ -58,6 +58,7 @@ public class Customer {
      * 1 Customer có 1 Cart (giỏ hàng)
      */
     @OneToOne(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonBackReference
     private Cart cart;
 
     /**
