@@ -11,6 +11,7 @@ import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/brands")
+
 public class BrandController {
     private final BrandService brandService;
 
