@@ -34,8 +34,14 @@ public class Product {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(length = 500)
-    private String image;
+    @ElementCollection
+    @CollectionTable(
+            name = "product_images",
+            joinColumns = @JoinColumn(name = "product_id")
+    )
+    @Column(name = "image_url", length = 500)
+    private List<String> images = new ArrayList<>();
+
 
     /**
      * Quan hệ n-1 với Category
@@ -61,7 +67,7 @@ public class Product {
      * mappedBy = "product" tham chiếu đến thuộc tính product trong ProductVariant entity
      */
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonIgnoreProperties("product")
+    @JsonIgnore
     private List<ProductVariant> variants = new ArrayList<>();
 
     /**
@@ -126,13 +132,14 @@ public class Product {
         this.description = description;
     }
 
-    public String getImage() {
-        return image;
+    public List<String> getImages() {
+        return images;
     }
 
-    public void setImage(String image) {
-        this.image = image;
+    public void setImages(List<String> images) {
+        this.images = images;
     }
+
 
     public Category getCategory() {
         return category;
