@@ -64,7 +64,7 @@ public class AuthController {
             // Trả về 401 Unauthorized
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
-                    .body(new ErrorResponse("Tên đăng nhập hoặc mật khẩu không đúng" + loginRequest.getUsername() + loginRequest.getPassword() + "!!"));
+                    .body(new ErrorResponse("Tên đăng nhập hoặc mật khẩu không đúng"));
         } catch (DisabledException e) {
             // Bắt lỗi: Tài khoản bị vô hiệu hóa (Status = DISABLED)
             // Trả về 401 Unauthorized
