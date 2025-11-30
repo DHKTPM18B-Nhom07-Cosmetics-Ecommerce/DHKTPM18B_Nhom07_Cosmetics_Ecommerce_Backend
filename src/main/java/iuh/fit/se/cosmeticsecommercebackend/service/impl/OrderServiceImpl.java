@@ -89,6 +89,36 @@ public class OrderServiceImpl implements OrderService {
     public Order findById(long id) {
         Order order = orderRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng ID: " + id));
+        if (order.getOrderDetails() != null) {
+            order.getOrderDetails().size();
+            order.getOrderDetails().forEach(detail -> {
+                if (detail.getProductVariant() != null) {
+                    detail.getProductVariant().getId();
+                    // Buộc tải Product (nếu Product là LAZY trong ProductVariant)
+                    // if (detail.getProductVariant().getProduct() != null) {
+                    //    detail.getProductVariant().getProduct().getProductName();
+                    // }
+                }
+            });
+        }
+
+        // 2. Buộc tải Address
+        if (order.getAddress() != null) {
+            // Tải các trường cần thiết cho frontend
+            order.getAddress().getId();
+            order.getAddress().getFullName();
+            order.getAddress().getPhone();
+            order.getAddress().getAddress();
+            order.getAddress().getCity();
+            order.getAddress().getState();
+            order.getAddress().getCountry();
+        }
+
+        // 3. Buộc tải Customer
+        if (order.getCustomer() != null) {
+            order.getCustomer().getId();
+        }
+
         return order;
     }
 
@@ -143,7 +173,7 @@ public class OrderServiceImpl implements OrderService {
 
     // ============================= NGHIỆP VỤ TRẠNG THÁI (BỔ SUNG VÀ SỬA LỖI) =============================
 
-    // 🔴 4. BỔ SUNG: Tính tổng tiền đơn hàng dựa trên chi tiết đơn hàng
+    // 4. BỔ SUNG: Tính tổng tiền đơn hàng dựa trên chi tiết đơn hàng
     // Nhận Order thay vì ID để tái sử dụng trong createOrder
     public BigDecimal calculateTotal(Order order) {
         BigDecimal total = BigDecimal.ZERO;

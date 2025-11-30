@@ -56,7 +56,6 @@ public class CustomerController {
 
         Customer customer = new Customer();
         customer.setAccount(account);
-        customer.setName((String) body.get("name"));
 
         Customer saved = customerService.create(customer);
         return ResponseEntity.ok(saved);
