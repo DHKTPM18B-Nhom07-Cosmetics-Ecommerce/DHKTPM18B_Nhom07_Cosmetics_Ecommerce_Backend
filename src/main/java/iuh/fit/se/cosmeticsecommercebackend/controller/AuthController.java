@@ -57,7 +57,7 @@ public class AuthController {
                     .orElseThrow(() -> new RuntimeException("Lỗi logic: Không tìm thấy tài khoản sau khi xác thực thành công."));
 
             // 3. Trả về Token và Tên đầy đủ
-            return ResponseEntity.ok(new JwtResponse(jwt, account.getFullName()));
+            return ResponseEntity.ok(new JwtResponse(jwt, account.getFullName(), account.getRole()));
 
         } catch (BadCredentialsException | UsernameNotFoundException e) {
             // Bắt lỗi: Sai mật khẩu hoặc không tìm thấy tên đăng nhập/email
