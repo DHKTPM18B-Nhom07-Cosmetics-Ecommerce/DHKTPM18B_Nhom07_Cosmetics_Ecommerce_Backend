@@ -92,8 +92,10 @@ public class AuthService {
         String token = UUID.randomUUID().toString();
 
         // 3. Xóa Token cũ của Account này
-        // Spring Data JPA sẽ tự động tìm và xóa các token liên kết với Account này.
-        tokenRepository.deleteByAccount(account);
+        PasswordResetToken oldToken = tokenRepository.findByAccount(account).orElse(null);
+        if (oldToken != null)
+            tokenRepository.delete(oldToken);
+        tokenRepository.flush();
 
         // 4. Lưu Token mới vào CSDL
         PasswordResetToken resetToken = new PasswordResetToken(token, account);

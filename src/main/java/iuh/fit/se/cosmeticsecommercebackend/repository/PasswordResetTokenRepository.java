@@ -3,7 +3,10 @@ package iuh.fit.se.cosmeticsecommercebackend.repository;
 import iuh.fit.se.cosmeticsecommercebackend.model.Account;
 import iuh.fit.se.cosmeticsecommercebackend.model.PasswordResetToken;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.Optional;
 
 @Repository
@@ -11,6 +14,5 @@ public interface PasswordResetTokenRepository extends JpaRepository<PasswordRese
 
     Optional<PasswordResetToken> findByToken(String token);
 
-    // Phương thức này CẦN nhận Account Entity để tìm kiếm và xóa Token cũ của nó.
-    void deleteByAccount(Account account);
+    Optional<PasswordResetToken> findByAccount(Account account);
 }
