@@ -1,0 +1,89 @@
+package iuh.fit.se.cosmeticsecommercebackend.controller;
+
+import iuh.fit.se.cosmeticsecommercebackend.model.Account;
+import iuh.fit.se.cosmeticsecommercebackend.service.AccountService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/accounts")
+
+public class AccountController {
+
+    private final AccountService accountService;
+
+    public AccountController(AccountService accountService) {
+        this.accountService = accountService;
+    }
+
+    @GetMapping("/management")
+    public ResponseEntity<Page<Account>> getAccountsForManagement(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Account> result = accountService.findAccountsForManagement(role, status, search, pageable);
+        return ResponseEntity.ok(result);
+    }
+    // 1. READ (All)
+    @GetMapping
+    public List<Account> getAllAccounts() {
+        return accountService.findAllAccounts();
+    }
+
+    // 2. READ (By ID)
+    @GetMapping("/{id}")
+    public ResponseEntity<Account> getAccountById(@PathVariable Long id) {
+        return accountService.findAccountById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // 3. CREATE
+    @PostMapping
+    public Account createAccount(@RequestBody Account account) {
+        // Hàm này tạo 1 Account độc lập (ví dụ: cho Customer)
+        return accountService.createAccount(account);
+    }
+
+    // 4. UPDATE
+    @PutMapping("/{id}")
+    public ResponseEntity<Account> updateAccount(@PathVariable Long id, @RequestBody Account accountDetails) {
+        try {
+            Account updatedAccount = accountService.updateAccount(id, accountDetails);
+            return ResponseEntity.ok(updatedAccount);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // 5. SOFT DELETE (Disable Account)
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> disableAccount(@PathVariable Long id,
+                                            @RequestParam(required = false) String reason) {
+        try {
+            accountService.disableAccount(id, reason);
+            return ResponseEntity.ok("Tài khoản đã bị vô hiệu hóa thành công");
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // 6. READ BY USERNAME
+    @GetMapping("/by-username/{username}")
+    public ResponseEntity<Account> getAccountByUsername(@PathVariable String username) {
+        return accountService.findByUsername(username)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+}

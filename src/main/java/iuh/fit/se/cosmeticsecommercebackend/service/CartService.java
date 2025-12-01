@@ -11,4 +11,6 @@ public interface CartService {
     Cart create(Cart cart);
     Cart update(Long id, Cart cart);
     void delete(Long id);
+    Cart addToCart(Long accountId, Long variantId, int quantity);
+    Cart getCartByAccountId(Long accountId);
 }
