@@ -3,16 +3,23 @@ package iuh.fit.se.cosmeticsecommercebackend.service.impl;
 import iuh.fit.se.cosmeticsecommercebackend.exception.ResourceNotFoundException;
 import iuh.fit.se.cosmeticsecommercebackend.model.Product;
 import iuh.fit.se.cosmeticsecommercebackend.repository.ProductRepository;
+import iuh.fit.se.cosmeticsecommercebackend.repository.ProductSpecification;
 import iuh.fit.se.cosmeticsecommercebackend.service.ProductService;
 import jakarta.transaction.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+
+
 import java.util.List;
 
 @Service
 @Transactional
 public class ProductServiceImpl implements ProductService {
+
     private final ProductRepository productRepository;
 
     public ProductServiceImpl(ProductRepository productRepository) {
@@ -48,7 +55,6 @@ public class ProductServiceImpl implements ProductService {
         existing.setActive(updatedProduct.isActive());
         existing.setAverageRating(updatedProduct.getAverageRating());
 
-        // Nếu có danh sách variants mới thì cập nhật
         if (updatedProduct.getVariants() != null) {
             existing.getVariants().clear();
             existing.getVariants().addAll(updatedProduct.getVariants());
@@ -64,5 +70,20 @@ public class ProductServiceImpl implements ProductService {
             throw new ResourceNotFoundException("Không tìm thấy sản phẩm có ID = " + id);
         }
         productRepository.deleteById(id);
+    }
+
+    @Override
+    public Page<Product> filterProducts(String search, Long categoryId, Long brandId,
+                                        Long minPrice, Long maxPrice, Double rating, Pageable pageable) {
+
+        Specification<Product> spec = Specification.allOf(
+                ProductSpecification.nameContains(search),
+                ProductSpecification.hasCategory(categoryId),
+                ProductSpecification.hasBrand(brandId),
+                ProductSpecification.priceBetween(minPrice, maxPrice),
+                ProductSpecification.ratingAtLeast(rating)
+        );
+
+        return productRepository.findAll(spec, pageable);
     }
 }

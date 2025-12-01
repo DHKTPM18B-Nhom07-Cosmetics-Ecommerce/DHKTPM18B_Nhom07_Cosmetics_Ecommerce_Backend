@@ -65,7 +65,7 @@ public class Product {
      * mappedBy = "product" tham chiếu đến thuộc tính product trong ProductVariant entity
      */
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonIgnore
+    @JsonIgnoreProperties({"product"})
     private List<ProductVariant> variants = new ArrayList<>();
 
     /**
