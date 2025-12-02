@@ -2,17 +2,8 @@ package iuh.fit.se.cosmeticsecommercebackend.controller;
 
 import iuh.fit.se.cosmeticsecommercebackend.model.Product;
 import iuh.fit.se.cosmeticsecommercebackend.service.ProductService;
-
-import jakarta.persistence.EntityNotFoundException;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-
-import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.*;
 import org.springframework.http.ResponseEntity;
-
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -20,77 +11,50 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/products")
-@CrossOrigin(origins = "*")
+@CrossOrigin("*")
 public class ProductController {
 
-    private final ProductService productService;
+    private final ProductService service;
 
-    public ProductController(ProductService productService) {
-        this.productService = productService;
+    public ProductController(ProductService service) {
+        this.service = service;
     }
 
-    // ===============================
-    // GET ALL
-    // ===============================
     @GetMapping
-    public ResponseEntity<List<Product>> getAllProducts() {
-        return ResponseEntity.ok(productService.getAll());
+    public ResponseEntity<?> getAll() {
+        return ResponseEntity.ok(service.getAll());
     }
 
-    // ===============================
-    // GET BY ID
-    // ===============================
     @GetMapping("/{id}")
-    public ResponseEntity<?> getProductById(@PathVariable Long id) {
-        try {
-            return ResponseEntity.ok(productService.getById(id));
-        } catch (EntityNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+    public ResponseEntity<?> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(service.getById(id));
     }
 
-    // ===============================
-    // CREATE
-    // ===============================
     @PostMapping
-    public ResponseEntity<Product> createProduct(@RequestBody Product product) {
-        Product created = productService.create(product);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    public ResponseEntity<?> create(@RequestBody Product p) {
+        return ResponseEntity.ok(service.create(p));
     }
 
-    // ===============================
-    // UPDATE
-    // ===============================
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateProduct(@PathVariable Long id, @RequestBody Product updated) {
-        try {
-            return ResponseEntity.ok(productService.update(id, updated));
-        } catch (EntityNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody Product p) {
+        return ResponseEntity.ok(service.update(id, p));
     }
 
-    // ===============================
-    // DELETE
-    // ===============================
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
-        try {
-            productService.delete(id);
-            return ResponseEntity.noContent().build();
-        } catch (EntityNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+    public ResponseEntity<?> delete(@PathVariable Long id) {
+        service.delete(id);
+        return ResponseEntity.noContent().build();
     }
 
-    // ===============================
-    //  FILTER API
-    // ===============================
+    // ============================================
+    // FILTER
+    // ============================================
     @GetMapping("/filter")
-    public ResponseEntity<?> filterProducts(
+    public ResponseEntity<?> filter(
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) Long category,
-            @RequestParam(required = false) Long brand,
+            @RequestParam(required = false) String categories,
+            @RequestParam(required = false) String brands,
+            @RequestParam(required = false) String stocks,
             @RequestParam(required = false) Long minPrice,
             @RequestParam(required = false) Long maxPrice,
             @RequestParam(required = false) Double rating,
@@ -99,30 +63,40 @@ public class ProductController {
             @RequestParam(defaultValue = "newest") String sort
     ) {
 
-        // ===== SORT CONFIG =====
         Sort sortConfig = switch (sort) {
+            case "oldest" -> Sort.by("createdAt").ascending();
             case "priceAsc" -> Sort.by("variants.price").ascending();
             case "priceDesc" -> Sort.by("variants.price").descending();
+            case "all" -> Sort.unsorted();
             default -> Sort.by("createdAt").descending();
         };
 
         Pageable pageable = PageRequest.of(page, size, sortConfig);
 
-        // ===== FETCH PRODUCTS =====
-        Page<Product> result = productService.filterProducts(
-                search, category, brand, minPrice, maxPrice, rating, pageable
+        var result = service.filterProducts(
+                search, categories, brands, minPrice, maxPrice, rating, stocks, pageable
         );
 
-        List<HashMap<String, Object>> content = result.getContent().stream().map(product -> {
+        // mapping
+        List<?> content = result.getContent().stream().map(product -> {
             HashMap<String, Object> map = new HashMap<>();
 
-            Long min = product.getVariants().stream()
+            long min = product.getVariants().stream()
                     .map(v -> v.getPrice().longValue())
-                    .min(Long::compareTo).orElse(0L);
+                    .min(Long::compareTo)
+                    .orElse(0L);
 
-            Long max = product.getVariants().stream()
+            long max = product.getVariants().stream()
                     .map(v -> v.getPrice().longValue())
-                    .max(Long::compareTo).orElse(0L);
+                    .max(Long::compareTo)
+                    .orElse(0L);
+
+            int totalQty = product.getVariants().stream()
+                    .mapToInt(v -> v.getQuantity() == null ? 0 : v.getQuantity())
+                    .sum();
+
+            boolean inStock = totalQty > 0;
+            boolean lowStock = totalQty > 0 && totalQty <= 10;
 
             map.put("id", product.getId());
             map.put("name", product.getName());
@@ -131,14 +105,17 @@ public class ProductController {
             map.put("averageRating", product.getAverageRating());
             map.put("brandName", product.getBrand() != null ? product.getBrand().getName() : null);
             map.put("categoryName", product.getCategory() != null ? product.getCategory().getName() : null);
+
             map.put("variants", product.getVariants());
             map.put("minPrice", min);
             map.put("maxPrice", max);
 
+            map.put("inStock", inStock);
+            map.put("lowStock", lowStock);
+
             return map;
         }).toList();
 
-        // ===== RETURN =====
         return ResponseEntity.ok(new HashMap<>() {{
             put("content", content);
             put("totalElements", result.getTotalElements());

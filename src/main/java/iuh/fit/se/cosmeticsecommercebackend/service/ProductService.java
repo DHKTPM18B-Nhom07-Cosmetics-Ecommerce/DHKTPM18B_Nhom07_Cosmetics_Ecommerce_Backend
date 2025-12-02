@@ -20,11 +20,12 @@ public interface ProductService {
 
     Page<Product> filterProducts(
             String search,
-            Long categoryId,
-            Long brandId,
+            String categories,
+            String brands,
             Long minPrice,
             Long maxPrice,
             Double rating,
+            String stocks,
             Pageable pageable
     );
 }
