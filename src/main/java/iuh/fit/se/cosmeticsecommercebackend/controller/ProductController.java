@@ -2,68 +2,125 @@ package iuh.fit.se.cosmeticsecommercebackend.controller;
 
 import iuh.fit.se.cosmeticsecommercebackend.model.Product;
 import iuh.fit.se.cosmeticsecommercebackend.service.ProductService;
-import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.persistence.EntityNotFoundException;
+import java.util.HashMap;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/products")
-@CrossOrigin(origins = "*")
+@CrossOrigin("*")
 public class ProductController {
 
-    private final ProductService productService;
+    private final ProductService service;
 
-    public ProductController(ProductService productService) {
-        this.productService = productService;
+    public ProductController(ProductService service) {
+        this.service = service;
     }
 
-    // Lấy danh sách sản phẩm
     @GetMapping
-    public ResponseEntity<List<Product>> getAllProducts() {
-        List<Product> products = productService.getAll();
-        return ResponseEntity.ok(products);
+    public ResponseEntity<?> getAll() {
+        return ResponseEntity.ok(service.getAll());
     }
 
-    // Lấy sản phẩm theo ID
     @GetMapping("/{id}")
-    public ResponseEntity<?> getProductById(@PathVariable Long id) {
-        try {
-            Product product = productService.getById(id);
-            return ResponseEntity.ok(product);
-        } catch (EntityNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+    public ResponseEntity<?> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(service.getById(id));
     }
 
-    // Tạo sản phẩm mới
     @PostMapping
-    public ResponseEntity<Product> createProduct(@RequestBody Product product) {
-        Product created = productService.create(product);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    public ResponseEntity<?> create(@RequestBody Product p) {
+        return ResponseEntity.ok(service.create(p));
     }
 
-    // Cập nhật sản phẩm
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateProduct(@PathVariable Long id, @RequestBody Product product) {
-        try {
-            Product updated = productService.update(id, product);
-            return ResponseEntity.ok(updated);
-        } catch (EntityNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody Product p) {
+        return ResponseEntity.ok(service.update(id, p));
     }
 
-    // Xóa sản phẩm
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
-        try {
-            productService.delete(id);
-            return ResponseEntity.noContent().build(); // HTTP 204
-        } catch (EntityNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+    public ResponseEntity<?> delete(@PathVariable Long id) {
+        service.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ============================================
+    // FILTER
+    // ============================================
+    @GetMapping("/filter")
+    public ResponseEntity<?> filter(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String categories,
+            @RequestParam(required = false) String brands,
+            @RequestParam(required = false) String stocks,
+            @RequestParam(required = false) Long minPrice,
+            @RequestParam(required = false) Long maxPrice,
+            @RequestParam(required = false) Double rating,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            @RequestParam(defaultValue = "newest") String sort
+    ) {
+
+        Sort sortConfig = switch (sort) {
+            case "oldest" -> Sort.by("createdAt").ascending();
+            case "priceAsc" -> Sort.by("variants.price").ascending();
+            case "priceDesc" -> Sort.by("variants.price").descending();
+            case "all" -> Sort.unsorted();
+            default -> Sort.by("createdAt").descending();
+        };
+
+        Pageable pageable = PageRequest.of(page, size, sortConfig);
+
+        var result = service.filterProducts(
+                search, categories, brands, minPrice, maxPrice, rating, stocks, pageable
+        );
+
+        // mapping
+        List<?> content = result.getContent().stream().map(product -> {
+            HashMap<String, Object> map = new HashMap<>();
+
+            long min = product.getVariants().stream()
+                    .map(v -> v.getPrice().longValue())
+                    .min(Long::compareTo)
+                    .orElse(0L);
+
+            long max = product.getVariants().stream()
+                    .map(v -> v.getPrice().longValue())
+                    .max(Long::compareTo)
+                    .orElse(0L);
+
+            int totalQty = product.getVariants().stream()
+                    .mapToInt(v -> v.getQuantity() == null ? 0 : v.getQuantity())
+                    .sum();
+
+            boolean inStock = totalQty > 0;
+            boolean lowStock = totalQty > 0 && totalQty <= 10;
+
+            map.put("id", product.getId());
+            map.put("name", product.getName());
+            map.put("description", product.getDescription());
+            map.put("images", product.getImages());
+            map.put("averageRating", product.getAverageRating());
+            map.put("brandName", product.getBrand() != null ? product.getBrand().getName() : null);
+            map.put("categoryName", product.getCategory() != null ? product.getCategory().getName() : null);
+
+            map.put("variants", product.getVariants());
+            map.put("minPrice", min);
+            map.put("maxPrice", max);
+
+            map.put("inStock", inStock);
+            map.put("lowStock", lowStock);
+
+            return map;
+        }).toList();
+
+        return ResponseEntity.ok(new HashMap<>() {{
+            put("content", content);
+            put("totalElements", result.getTotalElements());
+            put("totalPages", result.getTotalPages());
+            put("page", result.getNumber());
+        }});
     }
 }

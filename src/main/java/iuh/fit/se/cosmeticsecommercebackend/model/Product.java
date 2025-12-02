@@ -65,7 +65,7 @@ public class Product {
      * mappedBy = "product" tham chiếu đến thuộc tính product trong ProductVariant entity
      */
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonIgnore
+    @JsonIgnoreProperties({"product"})
     private List<ProductVariant> variants = new ArrayList<>();
 
     /**
@@ -85,6 +85,17 @@ public class Product {
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
+
+//    thêm field
+    @Transient
+    private Integer minPrice;
+
+    @Transient
+    private Integer maxPrice;
+
+    @Transient
+    private Boolean inStock;
+
 
     // Gán giá trị tự động khi entity được lưu lần đầu
     @PrePersist
@@ -193,5 +204,29 @@ public class Product {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Integer getMinPrice() {
+        return minPrice;
+    }
+
+    public void setMinPrice(Integer minPrice) {
+        this.minPrice = minPrice;
+    }
+
+    public Integer getMaxPrice() {
+        return maxPrice;
+    }
+
+    public void setMaxPrice(Integer maxPrice) {
+        this.maxPrice = maxPrice;
+    }
+
+    public Boolean getInStock() {
+        return inStock;
+    }
+
+    public void setInStock(Boolean inStock) {
+        this.inStock = inStock;
     }
 }
