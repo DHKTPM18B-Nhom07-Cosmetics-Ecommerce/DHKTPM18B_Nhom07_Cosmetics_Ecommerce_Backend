@@ -51,9 +51,10 @@ public class ProductVariant {
      * Quan hệ n-1 với Product
      * Nhiều ProductVariant thuộc về 1 Product
      */
+    //@JsonIgnore
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "product_id", nullable = false)
-    //@JsonIgnore
+    @JsonIgnore
     private Product product;
 
     /**

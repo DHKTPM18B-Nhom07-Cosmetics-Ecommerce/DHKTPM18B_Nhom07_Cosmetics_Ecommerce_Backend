@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+
 import java.math.BigDecimal;
 
 /**
@@ -36,6 +37,7 @@ public class CartItem {
      * Quan hệ n-1 với ProductVariant
      * Nhiều CartItem có thể tham chiếu đến 1 ProductVariant
      */
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "variant_id", nullable = false)
     private ProductVariant productVariant;

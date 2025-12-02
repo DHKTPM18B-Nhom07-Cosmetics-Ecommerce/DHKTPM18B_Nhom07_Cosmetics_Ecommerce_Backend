@@ -8,3 +8,5 @@ public enum VoucherScope {
     CATEGORY,   // Giảm theo danh mục
     PRODUCT
 }
+
+

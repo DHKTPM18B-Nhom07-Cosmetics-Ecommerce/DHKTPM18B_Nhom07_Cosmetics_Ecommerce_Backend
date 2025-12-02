@@ -40,6 +40,7 @@ public class Cart {
      * Quan hệ 1-n với CartItem
      * 1 Cart có nhiều CartItem
      */
+
     @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<CartItem> items = new ArrayList<>();
 

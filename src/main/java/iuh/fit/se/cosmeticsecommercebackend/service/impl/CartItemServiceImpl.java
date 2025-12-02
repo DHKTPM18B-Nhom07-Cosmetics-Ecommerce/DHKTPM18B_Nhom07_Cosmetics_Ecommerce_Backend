@@ -23,6 +23,10 @@ public class CartItemServiceImpl implements CartItemService {
         this.cartRepository = cartRepository;
     }
 
+    public CartItemServiceImpl(CartItemRepository cartItemRepository) {
+        this.cartItemRepository = cartItemRepository;
+    }
+
     @Override
     public List<CartItem> getAllCartItems() {
         return cartItemRepository.findAll();

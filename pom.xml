@@ -123,6 +123,13 @@
             <version>5.2.5</version>
         </dependency>
 
+        <!-- Fix for Specification.where() not recognized in Spring Boot 3.x (Jakarta Persistence 3) -->
+        <dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-commons</artifactId>
+        </dependency>
+
+
     </dependencies>
 
     <build>
