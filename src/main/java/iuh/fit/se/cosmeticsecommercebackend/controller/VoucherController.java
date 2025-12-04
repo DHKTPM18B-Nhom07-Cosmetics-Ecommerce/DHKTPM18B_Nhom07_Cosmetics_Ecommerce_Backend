@@ -157,7 +157,6 @@ public class VoucherController {
 
     private String validateRow(Map<String, Object> m, Set<String> fileCodes) {
         try {
-            /* -------- CODE -------- */
             if (isEmpty(m.get("code"))) return "Thiếu mã voucher";
 
             String code = m.get("code").toString().trim().toUpperCase();
@@ -173,7 +172,6 @@ public class VoucherController {
 
             if (exists) return "Mã '" + code + "' đã tồn tại trong DB";
 
-            /* -------- TYPE -------- */
             VoucherType type;
             try {
                 type = VoucherType.valueOf(m.get("type").toString().trim().toUpperCase());
@@ -181,49 +179,24 @@ public class VoucherController {
                 return "Type không hợp lệ";
             }
 
-            /* -------- VALUE -------- */
             if (isEmpty(m.get("value"))) return "Thiếu value";
 
             BigDecimal value = safeDecimal(m.get("value"));
             if (value.compareTo(BigDecimal.ZERO) < 0)
                 return "Value không được âm";
 
-            /* PERCENT RULE */
             if (type == VoucherType.PERCENT) {
                 if (isEmpty(m.get("maxDiscount")))
-                    return "Giảm % bắt buộc phải có maxDiscount";
+                    return "Giảm % phải có maxDiscount";
 
                 BigDecimal max = safeDecimal(m.get("maxDiscount"));
-
-                if (value.compareTo(BigDecimal.ONE) < 0 || value.compareTo(BigDecimal.valueOf(100)) > 0)
-                    return "Value % phải từ 1 đến 100";
-
                 if (max.compareTo(BigDecimal.ZERO) <= 0)
                     return "maxDiscount phải > 0";
+
+                if (value.compareTo(BigDecimal.ONE) < 0 || value.compareTo(BigDecimal.valueOf(100)) > 0)
+                    return "Value % phải từ 1–100";
             }
 
-            /* SHIPPING FREE RULE */
-            if (type == VoucherType.SHIPPING_FREE && value.compareTo(BigDecimal.ZERO) != 0)
-                return "SHIPPING_FREE yêu cầu value = 0";
-
-            /* -------- LIMIT -------- */
-            Integer maxUses = safeInt(m.get("maxUses"));
-            if (maxUses != null && maxUses <= 0)
-                return "maxUses phải > 0";
-
-            Integer perUser = safeInt(m.get("perUserLimit"));
-            if (perUser != null && perUser <= 0)
-                return "perUserLimit phải > 0";
-
-            /* -------- STACKABLE -------- */
-            if (isEmpty(m.get("stackable")))
-                return "Thiếu stackable";
-
-            String s = m.get("stackable").toString().trim().toLowerCase();
-            if (!(s.equals("true") || s.equals("false")))
-                return "stackable phải là true/false";
-
-            /* -------- SCOPE -------- */
             VoucherScope scope;
             try {
                 scope = VoucherScope.valueOf(m.get("scope").toString().trim().toUpperCase());
@@ -244,7 +217,6 @@ public class VoucherController {
             if (scope == VoucherScope.PRODUCT && prod.isEmpty())
                 return "Scope=PRODUCT nhưng thiếu productIds";
 
-            /* -------- DATE -------- */
             LocalDateTime start = parseDate(m.get("startAt"));
             LocalDateTime end = parseDate(m.get("endAt"));
 
@@ -262,22 +234,32 @@ public class VoucherController {
     }
 
     /* ============================================================
-                        MAP → ENTITY
+                        MAP → ENTITY (FE JSON)
        ============================================================ */
 
     private Voucher extractVoucher(Map<String, Object> body) {
+
         Voucher v = new Voucher();
 
-        v.setCode(body.get("code").toString()); // CODE KHÔNG UPDATE
-        v.setType(VoucherType.valueOf(body.get("type").toString().trim().toUpperCase()));
-        v.setScope(VoucherScope.valueOf(body.get("scope").toString().trim().toUpperCase()));
+        String code = getString(body, "code");
+        if (code != null) {
+            v.setCode(code.toUpperCase());
+        } else {
+            v.setCode("");
+        }
+
+        v.setType(VoucherType.valueOf(getString(body, "type").toUpperCase()));
+        v.setScope(VoucherScope.valueOf(getString(body, "scope").toUpperCase()));
 
         v.setValue(safeDecimal(body.get("value")));
 
-        // maxDiscount = null nếu FE không truyền
-        v.setMaxDiscount(isEmpty(body.get("maxDiscount"))
-                ? null
-                : safeDecimal(body.get("maxDiscount")));
+        // maxDiscount: cho phép null (đặc biệt với AMOUNT / SHIPPING_FREE)
+        Object maxObj = body.get("maxDiscount");
+        if (maxObj == null || maxObj.toString().trim().isEmpty()) {
+            v.setMaxDiscount(null);
+        } else {
+            v.setMaxDiscount(new BigDecimal(maxObj.toString().trim()));
+        }
 
         v.setMinOrderAmount(safeDecimal(body.get("minOrderAmount")));
 
@@ -288,9 +270,17 @@ public class VoucherController {
         v.setPerUserLimit(safeInt(body.get("perUserLimit")));
         v.setStackable(safeBoolean(body.get("stackable")));
 
+        v.setMinItemCount(safeInt(body.get("minItemCount")));
+
         v.setStatus(VoucherStatus.UPCOMING);
 
         return v;
+    }
+
+    private String getString(Map<String, Object> map, String key) {
+        Object v = map.get(key);
+        if (v == null) return "";
+        return v.toString().trim();
     }
 
     /* ============================================================
@@ -302,7 +292,9 @@ public class VoucherController {
         String[] keys = {
                 "code", "type", "value", "maxDiscount", "minOrderAmount",
                 "maxUses", "perUserLimit", "stackable", "scope",
-                "startAt", "endAt", "categoryIds", "brandIds", "productIds"
+                "startAt", "endAt",
+                "categoryIds", "brandIds", "productIds",
+                "minItemCount"
         };
 
         for (int i = 0; i < keys.length; i++)
@@ -321,7 +313,7 @@ public class VoucherController {
     }
 
     private BigDecimal safeDecimal(Object o) {
-        if (o == null) return BigDecimal.ZERO;
+        if (o == null || o.toString().trim().isEmpty()) return BigDecimal.ZERO;
         return new BigDecimal(o.toString().trim());
     }
 
@@ -329,13 +321,14 @@ public class VoucherController {
         if (o == null) return null;
 
         String s = o.toString().trim();
-        if (s.endsWith(".0")) s = s.substring(0, s.length() - 2);
+        if (s.endsWith(".0"))
+            s = s.substring(0, s.length() - 2);
 
         try {
             return Integer.parseInt(s);
-        } catch (Exception ignored) {
-            return null;
-        }
+        } catch (Exception ignored) {}
+
+        return null;
     }
 
     private Boolean safeBoolean(Object o) {
@@ -347,11 +340,11 @@ public class VoucherController {
 
         if (o instanceof Double d) {
             Date date = DateUtil.getJavaDate(d);
-            return LocalDateTime.ofInstant(date.toInstant(),
-                    java.time.ZoneId.systemDefault());
+            return LocalDateTime.ofInstant(date.toInstant(), java.time.ZoneId.systemDefault());
         }
 
         String s = o.toString().trim();
+
         if (s.length() == 10)
             s += "T00:00:00";
         else if (s.length() == 16)
@@ -363,10 +356,9 @@ public class VoucherController {
     }
 
     private List<Long> parseIds(Object obj) {
-
         if (obj == null) return List.of();
 
-        // CASE 1: FE gửi list dạng JSON array
+        // từ FE gửi lên là List<Long>
         if (obj instanceof List<?> list) {
             List<Long> ids = new ArrayList<>();
             for (Object item : list) {
@@ -377,11 +369,8 @@ public class VoucherController {
             return ids;
         }
 
-        // CASE 2: FE gửi string "1,2,3"
-        String raw = obj.toString().trim()
-                .replace("[", "")
-                .replace("]", "");
-
+        // từ Excel: "1,2,3"
+        String raw = obj.toString().trim().replace("[", "").replace("]", "");
         if (raw.isEmpty()) return List.of();
 
         List<Long> ids = new ArrayList<>();
@@ -392,6 +381,27 @@ public class VoucherController {
         }
 
         return ids;
+    }
+
+    @PostMapping("/apply")
+    public ResponseEntity<?> applyVoucher(@RequestBody Map<String, Object> body) {
+        try {
+            if (!body.containsKey("code"))
+                return ResponseEntity.badRequest().body(Map.of("error", "Thiếu mã voucher (code)"));
+
+            String code = body.get("code").toString();
+
+            List<Map<String, Object>> items =
+                    (List<Map<String, Object>>) body.get("items");
+
+            if (items == null || items.isEmpty())
+                return ResponseEntity.badRequest().body(Map.of("error", "Thiếu danh sách items"));
+
+            return ResponseEntity.ok(service.applyVoucher(code, items));
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
 }

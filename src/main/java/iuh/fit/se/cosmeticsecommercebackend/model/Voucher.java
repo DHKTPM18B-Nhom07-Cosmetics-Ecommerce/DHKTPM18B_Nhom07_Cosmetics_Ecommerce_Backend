@@ -6,7 +6,6 @@ import iuh.fit.se.cosmeticsecommercebackend.model.enums.VoucherStatus;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.VoucherType;
 
 import jakarta.persistence.*;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -18,63 +17,46 @@ public class Voucher {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "voucher_id")
     private Long id;
 
     @Column(nullable = false, unique = true, length = 64)
     private String code;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
     private VoucherType type;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
     private VoucherScope scope = VoucherScope.GLOBAL;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(precision = 10, scale = 2)
     private BigDecimal value;
 
-    @Column(name = "max_discount", precision = 10, scale = 2)
+    @Column(precision = 10, scale = 2)
     private BigDecimal maxDiscount;
 
-    @Column(name = "min_order_amount", precision = 10, scale = 2, nullable = false)
+    @Column(precision = 10, scale = 2)
     private BigDecimal minOrderAmount = BigDecimal.ZERO;
 
-    @Column(name = "start_at", nullable = false)
     private LocalDateTime startAt;
-
-    @Column(name = "end_at", nullable = false)
     private LocalDateTime endAt;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
     private VoucherStatus status = VoucherStatus.UPCOMING;
 
-    @Column(name = "max_uses")
     private Integer maxUses;
-
-    @Column(name = "per_user_limit")
     private Integer perUserLimit;
 
-    @Column(name = "is_stackable", nullable = false)
     private boolean isStackable = false;
 
-    /* ==========================================================
-          RELATIONS (NO MORE JSON IGNORE)
-       ========================================================== */
+    /* =============================
+            COMBO – FINAL
+       ============================= */
+    @Column(name = "min_item_count")
+    private Integer minItemCount;  // mua tối thiểu N sản phẩm để áp mã
 
-    @OneToMany(mappedBy = "voucher", fetch = FetchType.LAZY)
-    @JsonIgnoreProperties({"voucher", "customer"})
-    private List<VoucherRedemption> redemptions;
-
-    @OneToMany(mappedBy = "voucher", fetch = FetchType.LAZY)
-    @JsonIgnoreProperties({"voucher", "customer"})
-    private List<CustomerVoucher> customerVouchers;
-
-    /* ==========================================================
-          MANY-TO-MANY SCOPE (RETURN CLEAN JSON)
-       ========================================================== */
+    /* =============================
+              RELATIONS
+       ============================= */
 
     @ManyToMany
     @JoinTable(
@@ -82,7 +64,7 @@ public class Voucher {
             joinColumns = @JoinColumn(name = "voucher_id"),
             inverseJoinColumns = @JoinColumn(name = "category_id")
     )
-    @JsonIgnoreProperties({"products", "vouchers"})
+    @JsonIgnoreProperties("products")
     private Set<Category> categories = new HashSet<>();
 
     @ManyToMany
@@ -91,7 +73,7 @@ public class Voucher {
             joinColumns = @JoinColumn(name = "voucher_id"),
             inverseJoinColumns = @JoinColumn(name = "brand_id")
     )
-    @JsonIgnoreProperties({"products", "vouchers"})
+    @JsonIgnoreProperties("products")
     private Set<Brand> brands = new HashSet<>();
 
     @ManyToMany
@@ -100,13 +82,10 @@ public class Voucher {
             joinColumns = @JoinColumn(name = "voucher_id"),
             inverseJoinColumns = @JoinColumn(name = "product_id")
     )
-    @JsonIgnoreProperties({"brand", "category", "variants", "reviews"})
+    @JsonIgnoreProperties({"variants","reviews","brand","category"})
     private Set<Product> products = new HashSet<>();
 
-    /* ==========================================================
-          TRANSIENT LISTS FOR FE
-       ========================================================== */
-
+    /* ============================= */
     @Transient
     private List<Long> categoryIds;
 
@@ -116,16 +95,8 @@ public class Voucher {
     @Transient
     private List<Long> productIds;
 
-    /* ==========================================================
-          TIMESTAMPS
-       ========================================================== */
-
-    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
 
     @PrePersist
     protected void onCreate() {
@@ -138,74 +109,162 @@ public class Voucher {
         this.updatedAt = LocalDateTime.now();
     }
 
-    /* ==========================================================
-          GETTERS & SETTERS
-       ========================================================== */
+    /* GETTERS & SETTERS */
 
-    public Voucher() {}
+    public Integer getMinItemCount() { return minItemCount; }
+    public void setMinItemCount(Integer minItemCount) { this.minItemCount = minItemCount; }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getCode() { return code; }
-    public void setCode(String code) { this.code = code; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public VoucherType getType() { return type; }
-    public void setType(VoucherType type) { this.type = type; }
+    public String getCode() {
+        return code;
+    }
 
-    public VoucherScope getScope() { return scope; }
-    public void setScope(VoucherScope scope) { this.scope = scope; }
+    public void setCode(String code) {
+        this.code = code;
+    }
 
-    public BigDecimal getValue() { return value; }
-    public void setValue(BigDecimal value) { this.value = value; }
+    public VoucherType getType() {
+        return type;
+    }
 
-    public BigDecimal getMaxDiscount() { return maxDiscount; }
-    public void setMaxDiscount(BigDecimal maxDiscount) { this.maxDiscount = maxDiscount; }
+    public void setType(VoucherType type) {
+        this.type = type;
+    }
 
-    public BigDecimal getMinOrderAmount() { return minOrderAmount; }
-    public void setMinOrderAmount(BigDecimal minOrderAmount) { this.minOrderAmount = minOrderAmount; }
+    public VoucherScope getScope() {
+        return scope;
+    }
 
-    public LocalDateTime getStartAt() { return startAt; }
-    public void setStartAt(LocalDateTime startAt) { this.startAt = startAt; }
+    public void setScope(VoucherScope scope) {
+        this.scope = scope;
+    }
 
-    public LocalDateTime getEndAt() { return endAt; }
-    public void setEndAt(LocalDateTime endAt) { this.endAt = endAt; }
+    public BigDecimal getValue() {
+        return value;
+    }
 
-    public VoucherStatus getStatus() { return status; }
-    public void setStatus(VoucherStatus status) { this.status = status; }
+    public void setValue(BigDecimal value) {
+        this.value = value;
+    }
 
-    public Integer getMaxUses() { return maxUses; }
-    public void setMaxUses(Integer maxUses) { this.maxUses = maxUses; }
+    public BigDecimal getMaxDiscount() {
+        return maxDiscount;
+    }
 
-    public Integer getPerUserLimit() { return perUserLimit; }
-    public void setPerUserLimit(Integer perUserLimit) { this.perUserLimit = perUserLimit; }
+    public void setMaxDiscount(BigDecimal maxDiscount) {
+        this.maxDiscount = maxDiscount;
+    }
 
-    public boolean isStackable() { return isStackable; }
-    public void setStackable(boolean stackable) { isStackable = stackable; }
+    public BigDecimal getMinOrderAmount() {
+        return minOrderAmount;
+    }
 
-    public List<VoucherRedemption> getRedemptions() { return redemptions; }
-    public void setRedemptions(List<VoucherRedemption> redemptions) { this.redemptions = redemptions; }
+    public void setMinOrderAmount(BigDecimal minOrderAmount) {
+        this.minOrderAmount = minOrderAmount;
+    }
 
-    public List<CustomerVoucher> getCustomerVouchers() { return customerVouchers; }
-    public void setCustomerVouchers(List<CustomerVoucher> customerVouchers) { this.customerVouchers = customerVouchers; }
+    public LocalDateTime getStartAt() {
+        return startAt;
+    }
 
-    public Set<Category> getCategories() { return categories; }
-    public void setCategories(Set<Category> categories) { this.categories = categories; }
+    public void setStartAt(LocalDateTime startAt) {
+        this.startAt = startAt;
+    }
 
-    public Set<Brand> getBrands() { return brands; }
-    public void setBrands(Set<Brand> brands) { this.brands = brands; }
+    public LocalDateTime getEndAt() {
+        return endAt;
+    }
 
-    public Set<Product> getProducts() { return products; }
-    public void setProducts(Set<Product> products) { this.products = products; }
+    public void setEndAt(LocalDateTime endAt) {
+        this.endAt = endAt;
+    }
 
-    public List<Long> getCategoryIds() { return categoryIds; }
-    public void setCategoryIds(List<Long> categoryIds) { this.categoryIds = categoryIds; }
+    public VoucherStatus getStatus() {
+        return status;
+    }
 
-    public List<Long> getBrandIds() { return brandIds; }
-    public void setBrandIds(List<Long> brandIds) { this.brandIds = brandIds; }
+    public void setStatus(VoucherStatus status) {
+        this.status = status;
+    }
 
-    public List<Long> getProductIds() { return productIds; }
-    public void setProductIds(List<Long> productIds) { this.productIds = productIds; }
+    public Integer getMaxUses() {
+        return maxUses;
+    }
+
+    public void setMaxUses(Integer maxUses) {
+        this.maxUses = maxUses;
+    }
+
+    public Integer getPerUserLimit() {
+        return perUserLimit;
+    }
+
+    public void setPerUserLimit(Integer perUserLimit) {
+        this.perUserLimit = perUserLimit;
+    }
+
+    public boolean isStackable() {
+        return isStackable;
+    }
+
+    public void setStackable(boolean stackable) {
+        isStackable = stackable;
+    }
+
+    public Set<Category> getCategories() {
+        return categories;
+    }
+
+    public void setCategories(Set<Category> categories) {
+        this.categories = categories;
+    }
+
+    public Set<Brand> getBrands() {
+        return brands;
+    }
+
+    public void setBrands(Set<Brand> brands) {
+        this.brands = brands;
+    }
+
+    public Set<Product> getProducts() {
+        return products;
+    }
+
+    public void setProducts(Set<Product> products) {
+        this.products = products;
+    }
+
+    public List<Long> getCategoryIds() {
+        return categoryIds;
+    }
+
+    public void setCategoryIds(List<Long> categoryIds) {
+        this.categoryIds = categoryIds;
+    }
+
+    public List<Long> getBrandIds() {
+        return brandIds;
+    }
+
+    public void setBrandIds(List<Long> brandIds) {
+        this.brandIds = brandIds;
+    }
+
+    public List<Long> getProductIds() {
+        return productIds;
+    }
+
+    public void setProductIds(List<Long> productIds) {
+        this.productIds = productIds;
+    }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
@@ -222,4 +281,5 @@ public class Voucher {
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
+
 }
