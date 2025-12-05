@@ -19,7 +19,7 @@ public interface OrderService {
     Order updateOrder(Long id, Order orderDetails);
 
     //PHUONG THUC TIM KIEM
-    //tim tat ca don hang theo KH
+    //tim don hang theo KH
     List<Order> findByCustomer(Customer customer);
     //tim don hang theo NV
     List<Order> findByEmployee(Employee employee);
@@ -31,7 +31,12 @@ public interface OrderService {
     List<Order> findByStatusAndCustomer(OrderStatus status, Customer customer);
     //tim theo tong gia tri trong khoang
     List<Order> findByTotalBetween(BigDecimal minTotal, BigDecimal maxTotal);
-
+    // Phương thức mới: Lấy đơn hàng của khách hàng dựa trên ID/Username
+    List<Order> getMyOrders(String username);
+    /**
+     * Lấy chi tiết một đơn hàng, có kiểm tra xem đơn hàng đó có thuộc về username hay không.
+     */
+    Order getCustomerOrderById(Long orderId, String username);
     //NGHIEP VU XU LY TRANG THAI
     //huy don hang boi nhan vien
     Order cancelByEmployee(Long id, String cancelReason, Employee employee);

@@ -48,7 +48,6 @@ public class OrderServiceImpl implements OrderService {
         // 2️⃣ Gán thông tin mặc định
         order.setOrderDate(LocalDateTime.now());
         order.setStatus(OrderStatus.PENDING);
-        // Lưu ý: ShippingFee nên được gán ở đây nếu có logic phức tạp. Hiện tại, giả định nó được Entity gán mặc định.
 
         // 3️⃣ Gắn lại quan hệ 2 chiều và tính tổng tiền
         if (order.getOrderDetails() != null && !order.getOrderDetails().isEmpty()) {
@@ -69,8 +68,6 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // Gọi hàm tính tổng tiền cuối cùng (bao gồm cả phí vận chuyển, nếu có)
-        // Lưu ý: Hàm calculateTotal(order) được giả định là có thể tính toán total mà không cần lưu trước.
-        // Tuy nhiên, trong môi trường thực tế, ta thường tính toán và gán giá trị trước khi lưu.
         order.setTotal(calculateTotal(order));
 
         // 4️⃣ Lưu đơn hàng (cascade sẽ tự lưu OrderDetail)
@@ -84,6 +81,9 @@ public class OrderServiceImpl implements OrderService {
         return orderRepo.findAll();
     }
 
+    /**
+     * Phương thức dùng nội bộ hoặc Admin: Lấy đơn hàng theo ID và buộc tải Product.
+     */
     @Override
     @Transactional(readOnly = true)
     public Order findById(long id) {
@@ -94,17 +94,20 @@ public class OrderServiceImpl implements OrderService {
             order.getOrderDetails().forEach(detail -> {
                 if (detail.getProductVariant() != null) {
                     detail.getProductVariant().getId();
-                    // Buộc tải Product (nếu Product là LAZY trong ProductVariant)
-                    // if (detail.getProductVariant().getProduct() != null) {
-                    //    detail.getProductVariant().getProduct().getProductName();
-                    // }
+
+                    // BỔ SUNG: Buộc tải Product (nơi chứa tên sản phẩm và ảnh)
+                    if (detail.getProductVariant().getProduct() != null) {
+                        // Truy cập getName() để buộc tải Product Entity
+                        detail.getProductVariant().getProduct().getName();
+                        // Buộc tải danh sách ảnh (images)
+                        detail.getProductVariant().getProduct().getImages().size();
+                    }
                 }
             });
         }
 
         // 2. Buộc tải Address
         if (order.getAddress() != null) {
-            // Tải các trường cần thiết cho frontend
             order.getAddress().getId();
             order.getAddress().getFullName();
             order.getAddress().getPhone();
@@ -121,6 +124,27 @@ public class OrderServiceImpl implements OrderService {
 
         return order;
     }
+
+    /**
+     * TRIỂN KHAI PHƯƠNG THỨC BỊ THIẾU 1: Lấy chi tiết đơn hàng cho Khách hàng, có kiểm tra quyền sở hữu.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Order getCustomerOrderById(Long orderId, String username) {
+        // 1. Tìm Order bằng findById (đã có logic buộc tải)
+        Order order = findById(orderId);
+
+        // 2. Lấy Customer Entity từ username (từ JWT)
+        Customer customer = customerService.findByAccountUsername(username);
+
+        if (customer == null || !order.getCustomer().getId().equals(customer.getId())) {
+            // Ném lỗi 404 để không tiết lộ sự tồn tại của đơn hàng khác
+            throw new ResourceNotFoundException("Không tìm thấy đơn hàng ID: " + orderId);
+        }
+
+        return order; // Trả về đơn hàng sau khi xác minh quyền sở hữu
+    }
+
 
     @Override
     public Order updateOrder(Long id, Order orderDetails) {
@@ -171,17 +195,54 @@ public class OrderServiceImpl implements OrderService {
         return orderRepo.findByTotalBetween(min, max);
     }
 
-    // ============================= NGHIỆP VỤ TRẠNG THÁI (BỔ SUNG VÀ SỬA LỖI) =============================
+    /**
+     * TRIỂN KHAI PHƯƠNG THỨC BỊ THIẾU 2: Lấy danh sách đơn hàng cá nhân, có buộc tải Product.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<Order> getMyOrders(String username) {
 
-    // 4. BỔ SUNG: Tính tổng tiền đơn hàng dựa trên chi tiết đơn hàng
-    // Nhận Order thay vì ID để tái sử dụng trong createOrder
+        // Giả định: customerService.findByAccountUsername(username) hoạt động
+        Customer customer = customerService.findByAccountUsername(username);
+
+        if (customer == null) {
+            throw new ResourceNotFoundException("Không tìm thấy Khách hàng với Username: " + username);
+        }
+
+        List<Order> orders = orderRepo.findByCustomer(customer);
+
+        // Buộc tải các chi tiết cần thiết cho list view
+        for (Order order : orders) {
+            if (order.getOrderDetails() != null) {
+                order.getOrderDetails().size();
+
+                // BỔ SUNG: Buộc tải Product cho list view
+                order.getOrderDetails().forEach(detail -> {
+                    if (detail.getProductVariant() != null && detail.getProductVariant().getProduct() != null) {
+                        // Buộc tải TÊN
+                        detail.getProductVariant().getProduct().getName();
+                        // Buộc tải ẢNH (ElementCollection)
+                        detail.getProductVariant().getProduct().getImages().size();
+                    }
+                });
+            }
+            if (order.getAddress() != null) {
+                order.getAddress().getId();
+            }
+        }
+
+        return orders;
+    }
+
+    // ============================= NGHIỆP VỤ TRẠNG THÁI =============================
+
+    // 4. Tính tổng tiền đơn hàng dựa trên chi tiết đơn hàng
     public BigDecimal calculateTotal(Order order) {
         BigDecimal total = BigDecimal.ZERO;
 
         // 1. Tính tổng từ OrderDetails
         if (order.getOrderDetails() != null) {
             for (OrderDetail detail : order.getOrderDetails()) {
-                // Kiểm tra null và cộng totalPrice (đã tính ở createOrder)
                 if (detail.getTotalPrice() != null) {
                     total = total.add(detail.getTotalPrice());
                 }
@@ -189,7 +250,6 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // 2. Cộng phí vận chuyển (Shipping Fee)
-        // Giả định order.getShippingFee() có sẵn và không null
         if (order.getShippingFee() != null) {
             total = total.add(order.getShippingFee());
         }
@@ -236,7 +296,6 @@ public class OrderServiceImpl implements OrderService {
     // Nhân viên hủy đơn hàng
     @Override
     public Order cancelByEmployee(Long id, String cancelReason, Employee employee) {
-        // Kiểm tra Employee
         if (employee == null || employee.getId() == null) {
             throw new IllegalArgumentException("Nhân viên xác nhận hủy đơn hàng không hợp lệ.");
         }
@@ -258,6 +317,7 @@ public class OrderServiceImpl implements OrderService {
 
         return orderRepo.save(order);
     }
+
     //trả đơn
     @Override
     public Order requestReturn(Long id, String reason, Employee employee) {
@@ -350,4 +410,5 @@ public class OrderServiceImpl implements OrderService {
         order.setStatus(newStatus);
         return orderRepo.save(order);
     }
+
 }
