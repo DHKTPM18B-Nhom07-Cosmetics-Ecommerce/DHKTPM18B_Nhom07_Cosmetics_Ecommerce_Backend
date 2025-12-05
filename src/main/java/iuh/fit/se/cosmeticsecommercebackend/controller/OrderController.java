@@ -10,6 +10,7 @@ import iuh.fit.se.cosmeticsecommercebackend.service.EmployeeService;
 import iuh.fit.se.cosmeticsecommercebackend.service.OrderService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.security.Principal;
 import java.math.BigDecimal;
@@ -71,15 +72,23 @@ public class OrderController {
             return orderService.findByStatusAndCustomer(status, customer);
         }
 
-        // Logic lọc theo ngày tháng cho Customer sẽ cần thêm code ở đây nếu không có status.
         return orderService.getMyOrders(username);
     }
 
     // --- NGHIỆP VỤ TÌM KIẾM (CHỈ NÊN DÀNH CHO ADMIN/EMPLOYEE) ---
 
     @GetMapping("/admin/all")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public List<Order> getAllOrdersForAdmin() {
         return orderService.getAll();
+    }
+
+    /** 🎯 ENDPOINT MỚI: GET /api/orders/admin/{id} : Lấy chi tiết đơn hàng bất kỳ (Dành cho Admin) */
+    @GetMapping("/admin/{id}")
+    public ResponseEntity<Order> getAdminOrderDetail(@PathVariable String id) {
+        // Chỉ cần tìm đơn hàng, không cần kiểm tra quyền sở hữu Customer
+        Order order = orderService.findById(id);
+        return ResponseEntity.ok(order);
     }
 
     /** GET /api/orders/admin/status/{status} : Tìm theo trạng thái */
@@ -95,9 +104,8 @@ public class OrderController {
             @RequestParam("end") LocalDateTime end,
             @RequestParam(required = false) OrderStatus status) { // THÊM status option
 
-        // Nếu có Status, gọi Service có logic lọc kết hợp
         if (status != null) {
-            // Service cần có phương thức findByOrderDateBetweenAndStatus
+            // Giả định Service có phương thức findByOrderDateBetweenAndStatus
             // return orderService.findByOrderDateBetweenAndStatus(start, end, status);
         }
         return orderService.findByOrderDateBetween(start, end);
