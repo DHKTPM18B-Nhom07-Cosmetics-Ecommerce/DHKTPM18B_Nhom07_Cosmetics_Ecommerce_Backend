@@ -111,7 +111,7 @@ public class MailService {
         message.setSubject("⚠️ CẢNH BÁO BẢO MẬT: ĐĂNG NHẬP THẤT BẠI NHIỀU LẦN");
 
         String content = "Xin chào " + (fullName != null ? fullName : "Quý khách") + ",\n\n" +
-                "Hệ thống phát hiện tài khoản của bạn vừa có 5 lần đăng nhập thất bại liên tiếp.\n" +
+                "Hệ thống phát hiện tài khoản của bạn vừa có hơn 5 lần đăng nhập thất bại liên tiếp.\n" +
                 "Nếu không phải bạn thực hiện, vui lòng đổi mật khẩu ngay lập tức hoặc liên hệ Admin để khóa tài khoản tạm thời.\n\n" +
                 "IP truy cập: (Hệ thống ghi nhận)\n" +
                 "Thời gian: " + java.time.LocalDateTime.now() + "\n\n" +

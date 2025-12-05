@@ -208,7 +208,6 @@ public class OrderServiceImpl implements OrderService {
         return calculateTotal(order);
     }
 
-    //  Khách hàng hủy đơn hàng
     // Khách hàng hủy đơn hàng
     @Override
     public Order cancelByCustomer(Long orderId, String cancelReason, Customer customer) {
@@ -230,12 +229,8 @@ public class OrderServiceImpl implements OrderService {
         order.setCancelReason(cancelReason);
         order.setCanceledAt(LocalDateTime.now());
 
-        // Lưu đơn hàng đã hủy xuống DB trước
-        Order savedOrder = orderRepo.save(order);
 
-        // ==================================================================
-        // [THÊM KÉ]: GỌI RISK SERVICE ĐỂ KIỂM TRA SPAM VÀ BÁO ĐỘNG
-        // ==================================================================
+        Order savedOrder = orderRepo.save(order);
         try {
             if (customer.getAccount() != null) {
                 // Hàm này chỉ tính toán trong RAM và gửi mail, KHÔNG ghi xuống DB
@@ -245,7 +240,7 @@ public class OrderServiceImpl implements OrderService {
                 );
             }
         } catch (Exception e) {
-            // Bắt lỗi để nếu RiskService có vấn đề thì cũng không làm lỗi chức năng hủy đơn
+
             System.err.println("Lỗi check risk (bỏ qua): " + e.getMessage());
         }
         // ==================================================================
