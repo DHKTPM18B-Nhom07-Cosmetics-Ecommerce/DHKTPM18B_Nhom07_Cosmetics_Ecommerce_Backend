@@ -15,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -33,6 +35,43 @@ public class OrderServiceImpl implements OrderService {
         this.employeeService = employeeService;
     }
 
+    /**
+     * Logic phát sinh ID đơn hàng theo format OD-yyyymmdd[số thứ tự 2 chữ số].
+     * Hàm này phải được gọi trong @Transactional để đảm bảo tính nhất quán.
+     */
+    private String generateNewOrderId() {
+        // Định dạng ngày: yyyyMMdd
+        String today = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String prefix = "OD-" + today; // Ví dụ: OD-20251205
+
+        // Sử dụng phương thức repository mới để tìm ID lớn nhất trong ngày
+        // Việc này cần chạy trong cùng transaction để đảm bảo isolation.
+        Optional<String> lastIdOptional = orderRepo.findLastOrderIdByDatePrefix(prefix);
+
+        int sequence = 1; // Mặc định là 01 nếu chưa có đơn hàng nào
+
+        if (lastIdOptional.isPresent()) {
+            String lastId = lastIdOptional.get();
+            try {
+                // Lấy 2 ký tự cuối (số thứ tự)
+                String sequenceStr = lastId.substring(lastId.length() - 2);
+
+                // Chuyển sang số nguyên và tăng lên 1
+                sequence = Integer.parseInt(sequenceStr) + 1;
+            } catch (NumberFormatException e) {
+                // Xử lý lỗi nếu format ID bị sai (nên log lỗi này)
+                System.err.println("Lỗi parse ID đơn hàng: " + lastId);
+                // Vẫn giữ sequence = 1 và tiếp tục.
+                sequence = 1;
+            }
+        }
+
+        // Định dạng lại số thứ tự thành 2 chữ số (ví dụ: 1 -> 01, 15 -> 15)
+        String newSequence = String.format("%02d", sequence);
+
+        return prefix + newSequence;
+    }
+
     // ============================= TẠO ĐƠN HÀNG =============================
 
     @Override
@@ -48,6 +87,9 @@ public class OrderServiceImpl implements OrderService {
         // 2️⃣ Gán thông tin mặc định
         order.setOrderDate(LocalDateTime.now());
         order.setStatus(OrderStatus.PENDING);
+
+        // 🚨 KHẮC PHỤC: GÁN ID TÙY CHỈNH
+        order.setId(generateNewOrderId());
 
         // 3️⃣ Gắn lại quan hệ 2 chiều và tính tổng tiền
         if (order.getOrderDetails() != null && !order.getOrderDetails().isEmpty()) {
@@ -77,8 +119,26 @@ public class OrderServiceImpl implements OrderService {
     // ============================= CRUD CƠ BẢN =============================
 
     @Override
+    @Transactional(readOnly = true)
     public List<Order> getAll() {
-        return orderRepo.findAll();
+        List<Order> orders = orderRepo.findAll();
+
+        // Buộc tải các mối quan hệ cần thiết cho trang quản lý
+        for (Order order : orders) {
+            // 1. Buộc tải Customer và Account (để lấy tên Khách hàng)
+            if (order.getCustomer() != null && order.getCustomer().getAccount() != null) {
+                order.getCustomer().getAccount().getFullName();
+            }
+            // 2. Buộc tải OrderDetails (tùy chọn, để xem nhanh số lượng sản phẩm nếu cần)
+            if (order.getOrderDetails() != null) {
+                order.getOrderDetails().size();
+            }
+            // 3. Buộc tải Employee (nếu có)
+            if (order.getEmployee() != null) {
+                order.getEmployee().getId();
+            }
+        }
+        return orders;
     }
 
     /**
@@ -86,7 +146,7 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     @Transactional(readOnly = true)
-    public Order findById(long id) {
+    public Order findById(String id) {
         Order order = orderRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng ID: " + id));
         if (order.getOrderDetails() != null) {
@@ -130,7 +190,7 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     @Transactional(readOnly = true)
-    public Order getCustomerOrderById(Long orderId, String username) {
+    public Order getCustomerOrderById(String orderId, String username) {
         // 1. Tìm Order bằng findById (đã có logic buộc tải)
         Order order = findById(orderId);
 
@@ -146,21 +206,21 @@ public class OrderServiceImpl implements OrderService {
     }
 
 
-    @Override
-    public Order updateOrder(Long id, Order orderDetails) {
-        Order existing = findById(id);
-
-        if (existing.getStatus() != OrderStatus.PENDING) {
-            throw new IllegalStateException("Chỉ có thể chỉnh sửa đơn hàng khi trạng thái là PENDING. Trạng thái hiện tại: "
-                    + existing.getStatus());
-        }
-
-        // Cần cập nhật lại chi tiết đơn hàng (OrderDetails), tổng tiền và có thể là Address.
-        // Chỉ đơn giản cập nhật Total là không đủ.
-        throw new UnsupportedOperationException("Cập nhật đơn hàng (ngoài Total) cần logic phức tạp (cập nhật OrderDetails, Address, v.v.).");
-
-        // return orderRepo.save(existing);
-    }
+//    @Override
+//    public Order updateOrder(String id, Order orderDetails) {
+//        Order existing = findById(id);
+//
+//        if (existing.getStatus() != OrderStatus.PENDING) {
+//            throw new IllegalStateException("Chỉ có thể chỉnh sửa đơn hàng khi trạng thái là PENDING. Trạng thái hiện tại: "
+//                    + existing.getStatus());
+//        }
+//
+//        // Cần cập nhật lại chi tiết đơn hàng (OrderDetails), tổng tiền và có thể là Address.
+//        // Chỉ đơn giản cập nhật Total là không đủ.
+//        throw new UnsupportedOperationException("Cập nhật đơn hàng (ngoài Total) cần logic phức tạp (cập nhật OrderDetails, Address, v.v.).");
+//
+//        // return orderRepo.save(existing);
+//    }
 
     // ============================= TRUY VẤN =============================
     // (Các phương thức truy vấn được giữ nguyên vì chúng gọi trực tiếp từ Repository)
@@ -261,14 +321,14 @@ public class OrderServiceImpl implements OrderService {
 
     //calculateTotal
     @Override
-    public BigDecimal calculateTotal(Long orderId) {
+    public BigDecimal calculateTotal(String orderId) {
         Order order = findById(orderId);
         return calculateTotal(order);
     }
 
     //  Khách hàng hủy đơn hàng
     @Override
-    public Order cancelByCustomer(Long orderId, String cancelReason, Customer customer) {
+    public Order cancelByCustomer(String orderId, String cancelReason, Customer customer) {
         Order order = findById(orderId);
 
         // Kiểm tra quyền sở hữu
@@ -295,7 +355,7 @@ public class OrderServiceImpl implements OrderService {
 
     // Nhân viên hủy đơn hàng
     @Override
-    public Order cancelByEmployee(Long id, String cancelReason, Employee employee) {
+    public Order cancelByEmployee(String id, String cancelReason, Employee employee) {
         if (employee == null || employee.getId() == null) {
             throw new IllegalArgumentException("Nhân viên xác nhận hủy đơn hàng không hợp lệ.");
         }
@@ -320,7 +380,7 @@ public class OrderServiceImpl implements OrderService {
 
     //trả đơn
     @Override
-    public Order requestReturn(Long id, String reason, Employee employee) {
+    public Order requestReturn(String id, String reason, Employee employee) {
         Order order = findById(id);
 
         if (order.getStatus() != OrderStatus.DELIVERED) {
@@ -342,7 +402,7 @@ public class OrderServiceImpl implements OrderService {
 
     //Hoàn tiền đơn hàng
     @Override
-    public Order processRefund(Long id, Employee employee) {
+    public Order processRefund(String id, Employee employee) {
         Order order = findById(id);
 
         if (order.getStatus() != OrderStatus.RETURNED) {
@@ -362,7 +422,7 @@ public class OrderServiceImpl implements OrderService {
 
     // Cập nhật trạng thái đơn hàng với kiểm tra vai trò và trạng thái hợp lệ
     @Override
-    public Order updateStatus(Long id, OrderStatus newStatus, String cancelReason, Employee employee) {
+    public Order updateStatus(String id, OrderStatus newStatus, String cancelReason, Employee employee) {
         Order order = findById(id);
         OrderStatus current = order.getStatus();
 

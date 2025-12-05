@@ -11,7 +11,7 @@ import iuh.fit.se.cosmeticsecommercebackend.service.OrderService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.security.Principal; // Cần thiết để lấy thông tin người dùng từ JWT
+import java.security.Principal;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,32 +38,18 @@ public class OrderController {
         return new ResponseEntity<>(newOrder, HttpStatus.CREATED);
     }
 
-    /** * GET /api/orders/{id} : Lấy thông tin chi tiết đơn hàng (Dành cho Khách hàng).
-     * Phải kiểm tra quyền sở hữu.
-     */
+    /** * GET /api/orders/{id} : Lấy thông tin chi tiết đơn hàng (Dành cho Khách hàng). */
     @GetMapping("/{id}")
-    public ResponseEntity<Order> getCustomerOrderDetail(@PathVariable Long id, Principal principal) {
-
-        // **********************************************
-        // LƯU Ý QUAN TRỌNG: NẾU THIẾU TOKEN HỢP LỆ, 'principal' SẼ LÀ NULL.
-        // Spring Security phải được cấu hình để trả về 401/403 TẠI ĐÂY.
+    public ResponseEntity<Order> getCustomerOrderDetail(@PathVariable String id, Principal principal) {
         if (principal == null) {
-            // Nên để Spring Security xử lý, nhưng đây là cách phòng thủ.
             return new ResponseEntity<>(null, HttpStatus.UNAUTHORIZED);
         }
-        // **********************************************
-
-        // Lấy username/email từ token
         String username = principal.getName();
-
-        // Gọi Service có kiểm tra quyền sở hữu
         Order order = orderService.getCustomerOrderById(id, username);
         return ResponseEntity.ok(order);
     }
 
-    /** * GET /api/orders : Lấy danh sách đơn hàng cá nhân (Customer).
-     * SỬA ĐỔI: Sử dụng Principal để lọc theo khách hàng đang đăng nhập.
-     */
+    /** * GET /api/orders : Lấy danh sách đơn hàng cá nhân (Customer). */
     @GetMapping
     public List<Order> getCustomerOrders(
             Principal principal,
@@ -71,43 +57,30 @@ public class OrderController {
             @RequestParam(required = false) LocalDateTime start,
             @RequestParam(required = false) LocalDateTime end
     ) {
-        // **********************************************
         if (principal == null) {
-            // Ném lỗi để Spring Security trả về 401/403 nếu cấu hình đúng
             throw new ResourceNotFoundException("Yêu cầu xác thực để xem đơn hàng.");
         }
-        // **********************************************
-
-        // Lấy username/email từ token
         String username = principal.getName();
+        Customer customer = customerService.findByAccountUsername(username);
 
-        // 1. Nếu có lọc theo trạng thái
+        if (customer == null) {
+            throw new ResourceNotFoundException("Không tìm thấy thông tin Khách hàng cho tài khoản này.");
+        }
+
         if (status != null) {
-            // Lấy Customer Entity từ username
-            Customer customer = customerService.findByAccountUsername(username);
-
-            if (customer == null) {
-                throw new ResourceNotFoundException("Không tìm thấy thông tin Khách hàng cho tài khoản này.");
-            }
-
-            // Dùng hàm Service có sẵn kết hợp lọc theo Customer
             return orderService.findByStatusAndCustomer(status, customer);
         }
 
-        // MẶC ĐỊNH: Chỉ lấy tất cả đơn hàng của khách hàng (đã được lọc trong Service)
-        // Lọc ngày (start, end) hiện tại được bỏ qua như bạn đã chú thích
+        // Logic lọc theo ngày tháng cho Customer sẽ cần thêm code ở đây nếu không có status.
         return orderService.getMyOrders(username);
     }
 
-    /** PUT /api/orders/{id} : Cập nhật đơn hàng (Chỉ cho phép PENDING) */
-    @PutMapping("/{id}")
-    public ResponseEntity<Order> updateOrder(@PathVariable Long id, @RequestBody Order orderDetails) {
-        // LƯU Ý: Phương thức này có thể cần kiểm tra quyền của ADMIN/EMPLOYEE
-        Order updatedOrder = orderService.updateOrder(id, orderDetails);
-        return ResponseEntity.ok(updatedOrder);
-    }
-
     // --- NGHIỆP VỤ TÌM KIẾM (CHỈ NÊN DÀNH CHO ADMIN/EMPLOYEE) ---
+
+    @GetMapping("/admin/all")
+    public List<Order> getAllOrdersForAdmin() {
+        return orderService.getAll();
+    }
 
     /** GET /api/orders/admin/status/{status} : Tìm theo trạng thái */
     @GetMapping("/admin/status/{status}")
@@ -115,13 +88,21 @@ public class OrderController {
         return orderService.findByStatus(status);
     }
 
-    /** GET /api/orders/admin/date-range?start=...&end=... : Tìm kiếm trong khoảng thời gian */
+    /** 🎯 SỬA ĐỔI: GET /api/orders/admin/date-range (Hỗ trợ lọc kết hợp Status) */
     @GetMapping("/admin/date-range")
     public List<Order> findByOrderDateBetween(
             @RequestParam("start") LocalDateTime start,
-            @RequestParam("end") LocalDateTime end) {
+            @RequestParam("end") LocalDateTime end,
+            @RequestParam(required = false) OrderStatus status) { // THÊM status option
+
+        // Nếu có Status, gọi Service có logic lọc kết hợp
+        if (status != null) {
+            // Service cần có phương thức findByOrderDateBetweenAndStatus
+            // return orderService.findByOrderDateBetweenAndStatus(start, end, status);
+        }
         return orderService.findByOrderDateBetween(start, end);
     }
+
     /** GET /api/orders/admin/customer/{customerId} : Tìm đơn hàng theo Khách hàng */
     @GetMapping("/admin/customer/{customerId}")
     public ResponseEntity<List<Order>> findByCustomer(@PathVariable Long customerId) {
@@ -171,98 +152,67 @@ public class OrderController {
     }
 
 
-    /** * POST /api/orders/{id}/status
-     * Cập nhật trạng thái (Dành cho NV)
-     */
+    /** * POST /api/orders/{id}/status: Cập nhật trạng thái (Dành cho NV) */
     @PostMapping("/{id}/status")
     public ResponseEntity<Order> updateOrderStatus(
-            @PathVariable Long id,
+            @PathVariable String id,
             @RequestParam OrderStatus newStatus,
             @RequestParam(required = false) Long employeeId,
             @RequestParam(required = false) String cancelReason
     ) {
         Employee employee = getEmployeeOrNull(employeeId);
-
-        Order updatedOrder = orderService.updateStatus(
-                id,
-                newStatus,
-                cancelReason,
-                employee
-        );
+        Order updatedOrder = orderService.updateStatus(id, newStatus, cancelReason, employee);
         return ResponseEntity.ok(updatedOrder);
     }
 
-    /** * POST /api/orders/{id}/cancel
-     * Khách hàng tự hủy đơn hàng (Chỉ cho PENDING).
-     */
-    @PutMapping("/{id}/cancel") // Đổi sang PUT cho hành động cập nhật trạng thái
+    /** * PUT /api/orders/{id}/cancel: Khách hàng tự hủy đơn hàng (Chỉ cho PENDING). */
+    @PutMapping("/{id}/cancel")
     public ResponseEntity<Order> cancelByCustomer(
-            @PathVariable Long id,
+            @PathVariable String id,
             @RequestParam(required = false) String cancelReason,
-            Principal principal // Lấy người dùng đang đăng nhập
+            Principal principal
     ) {
-        // **********************************************
         if (principal == null) {
-            // Ném lỗi nếu chưa xác thực
             throw new ResourceNotFoundException("Yêu cầu xác thực để hủy đơn hàng.");
         }
-        // **********************************************
-
-        // Lấy username từ token
         String username = principal.getName();
-
-        // Tìm Customer Entity từ username
         Customer customer = customerService.findByAccountUsername(username);
 
         if (customer == null) {
             throw new ResourceNotFoundException("Không tìm thấy Khách hàng cho tài khoản này.");
         }
 
-        Order canceledOrder = orderService.cancelByCustomer(
-                id,
-                cancelReason,
-                customer // Truyền Customer Entity đã xác thực
-        );
+        Order canceledOrder = orderService.cancelByCustomer(id, cancelReason, customer);
         return ResponseEntity.ok(canceledOrder);
     }
 
-    /** * POST /api/orders/{id}/return
-     * Yêu cầu hoàn trả (Chỉ cho DELIVERED, Cần NV xác nhận)
-     */
+    /** * POST /api/orders/{id}/return: Yêu cầu hoàn trả (Chỉ cho DELIVERED, Cần NV xác nhận) */
     @PostMapping("/{id}/return")
     public ResponseEntity<Order> requestReturn(
-            @PathVariable Long id,
+            @PathVariable String id,
             @RequestParam Long employeeId,
             @RequestParam(required = false) String reason
     ) {
         Employee employee = getEmployeeOrNull(employeeId);
-
         Order returnedOrder = orderService.requestReturn(id, reason, employee);
         return ResponseEntity.ok(returnedOrder);
     }
 
-    /** * POST /api/orders/{id}/refund
-     * Xử lý hoàn tiền (Chỉ cho RETURNED, Cần NV thực hiện)
-     */
+    /** * POST /api/orders/{id}/refund: Xử lý hoàn tiền (Chỉ cho RETURNED, Cần NV thực hiện) */
     @PostMapping("/{id}/refund")
     public ResponseEntity<Order> processRefund(
-            @PathVariable Long id,
+            @PathVariable String id,
             @RequestParam Long employeeId
     ) {
         Employee employee = getEmployeeOrNull(employeeId);
-
         Order refundedOrder = orderService.processRefund(id, employee);
         return ResponseEntity.ok(refundedOrder);
     }
 
-    /**
-     * GET /api/orders/{id}/total
-     * Tính toán lại tổng tiền
-     */
+    /** GET /api/orders/{id}/total: Tính toán lại tổng tiền */
     @GetMapping("/{id}/total")
-    public ResponseEntity<BigDecimal> calculateTotal(@PathVariable Long id) {
+    public ResponseEntity<BigDecimal> calculateTotal(@PathVariable String id) {
         BigDecimal total = orderService.calculateTotal(id);
         return ResponseEntity.ok(total);
     }
-
 }

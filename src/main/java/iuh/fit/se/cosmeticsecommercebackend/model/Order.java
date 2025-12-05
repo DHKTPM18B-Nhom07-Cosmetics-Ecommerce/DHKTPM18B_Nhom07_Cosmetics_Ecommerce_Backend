@@ -42,12 +42,10 @@ import java.util.List;
 @ToString(exclude = {"customer", "employee", "orderDetails", "reviews"})
 @EqualsAndHashCode(exclude = {"customer", "employee", "orderDetails", "reviews"})
 public class Order {
-    
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "order_id")
-    private Long id;
-    
+    @Column(name = "order_id", length = 20)
+    private String id;
     /**
      * Quan hệ n-1 với Customer
      * Nhiều Order thuộc về 1 Customer
@@ -104,7 +102,7 @@ public class Order {
     public Order() {
     }
 
-    public Order(Long id, Customer customer, Employee employee, Address address, BigDecimal total, OrderStatus status, String cancelReason, LocalDateTime canceledAt, LocalDateTime orderDate, BigDecimal shippingFee, List<OrderDetail> orderDetails, List<VoucherRedemption> voucherRedemptions) {
+    public Order(String id, Customer customer, Employee employee, Address address, BigDecimal total, OrderStatus status, String cancelReason, LocalDateTime canceledAt, LocalDateTime orderDate, BigDecimal shippingFee, List<OrderDetail> orderDetails, List<VoucherRedemption> voucherRedemptions) {
         this.id = id;
         this.customer = customer;
         this.employee = employee;
@@ -119,7 +117,7 @@ public class Order {
         this.voucherRedemptions = voucherRedemptions;
     }
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
@@ -167,7 +165,7 @@ public class Order {
         return voucherRedemptions;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 

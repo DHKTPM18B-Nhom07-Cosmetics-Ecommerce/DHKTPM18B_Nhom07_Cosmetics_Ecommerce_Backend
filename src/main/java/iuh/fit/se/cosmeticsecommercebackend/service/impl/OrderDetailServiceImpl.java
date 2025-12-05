@@ -110,7 +110,7 @@ public class OrderDetailServiceImpl implements OrderDetailService {
 
     @Override
     @Transactional
-    public void restoreStockForOrder(Long orderId) {
+    public void restoreStockForOrder(String orderId) {
         // Lấy đơn hàng
         Order order = orderService.findById(orderId);
 
