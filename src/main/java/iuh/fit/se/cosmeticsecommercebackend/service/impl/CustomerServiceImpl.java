@@ -5,6 +5,7 @@ import iuh.fit.se.cosmeticsecommercebackend.repository.CustomerRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.CustomerService;
 import jakarta.persistence.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -42,5 +43,11 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public void delete(Long id) {
         customerRepository.deleteById(id);
+    }
+    @Override
+    public Customer findByAccountUsername(String username) {
+        // Gọi Repository đã sửa
+        return customerRepository.findByAccount_Username(username)
+                .orElse(null); // Hoặc ném ngoại lệ
     }
 }
