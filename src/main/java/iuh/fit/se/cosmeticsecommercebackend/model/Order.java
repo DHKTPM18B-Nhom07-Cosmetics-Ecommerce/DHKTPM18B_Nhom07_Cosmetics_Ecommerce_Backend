@@ -3,6 +3,7 @@ package iuh.fit.se.cosmeticsecommercebackend.model;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -52,7 +53,7 @@ public class Order {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = true)
-    @JsonManagedReference("order-customer")
+    @JsonIgnoreProperties({"addresses", "orders", "cart", "reviews", "customerVouchers", "voucherRedemptions", "wishList"})
     private Customer customer;
 
     /**
@@ -68,7 +69,7 @@ public class Order {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "address_id", nullable = true)
-    @JsonManagedReference("order-address")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"customer"})
     private Address address;
 
     @Column(nullable = false, precision = 12, scale = 2)

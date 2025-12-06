@@ -61,6 +61,7 @@ public class AddressController {
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy customer id: " + customerId));
 
         Address address = new Address();
+        address.setId(Address.generateAddressId());
         address.setCustomer(customer);
         address.setFullName((String) body.get("fullName"));
         address.setPhone((String) body.get("phone"));

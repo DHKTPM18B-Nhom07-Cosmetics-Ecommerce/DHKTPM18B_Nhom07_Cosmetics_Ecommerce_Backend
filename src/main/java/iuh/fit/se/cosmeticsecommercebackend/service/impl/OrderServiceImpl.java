@@ -147,6 +147,7 @@ public class OrderServiceImpl implements OrderService {
             if (customer == null) {
                 throw new ResourceNotFoundException("Không tìm thấy khách hàng với ID: " + request.getCustomerId());
             }
+
         }
         if (request.getCustomerId() == null || request.getCustomerId() == 0) {
             address = new Address();
@@ -167,15 +168,14 @@ public class OrderServiceImpl implements OrderService {
             }
         } else {
             address = new Address();
-            address.setFullName(request.getShippingFullName());
-            address.setPhone(request.getShippingPhone());
-            address.setAddress(request.getShippingAddress());
-            address.setCity(request.getShippingCity());
-            address.setState(request.getShippingState());
-            address.setCountry(request.getShippingCountry());
-            address.setCustomer(customer);
-            address.setDefault(false);
-            address = addressRepository.save(address);
+            // Tìm địa chỉ mặc định của khách
+            address = customer.getAddresses().stream()
+                    .filter(Address::isDefault)
+                    .findFirst()
+                    .orElse(null);
+            if (address == null) {
+                throw new ResourceNotFoundException("Khách hàng chưa có địa chỉ mặc định. Vui lòng cập nhật địa chỉ mặc định trước khi đặt hàng.");
+            }
         }
         // Nếu không đăng nhập thì bỏ qua address (address = null)
 

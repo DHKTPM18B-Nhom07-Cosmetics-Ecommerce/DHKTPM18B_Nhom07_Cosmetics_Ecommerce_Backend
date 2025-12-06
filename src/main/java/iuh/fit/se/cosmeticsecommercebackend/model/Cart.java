@@ -1,5 +1,6 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -31,6 +32,7 @@ public class Cart {
      */
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = false, unique = true)
+    @JsonIgnoreProperties({"addresses", "orders", "cart", "reviews", "customerVouchers", "voucherRedemptions", "wishList"})
     private Customer customer;
     
     @Column(nullable = false, precision = 12, scale = 2, name = "total_price")
@@ -76,4 +78,3 @@ public class Cart {
         this.items = items;
     }
 }
-
