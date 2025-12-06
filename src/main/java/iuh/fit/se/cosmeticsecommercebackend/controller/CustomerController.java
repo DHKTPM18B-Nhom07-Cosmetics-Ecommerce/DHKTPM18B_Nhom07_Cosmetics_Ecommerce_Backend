@@ -50,6 +50,9 @@ public class CustomerController {
     // 🔹 Tạo mới địa chỉ
     @PostMapping
     public ResponseEntity<Customer> createCustomer(@RequestBody Map<String, Object> body) {
+        if (!body.containsKey("accountId") || body.get("accountId") == null || ((Number) body.get("accountId")).longValue() == 0) {
+            return ResponseEntity.badRequest().build(); // Không tạo mới khách hàng nếu accountId = 0 hoặc null
+        }
         Long accountId = ((Number) body.get("accountId")).longValue();
         Account account = accountService.findAccountById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy tài khoản với id: " + accountId));

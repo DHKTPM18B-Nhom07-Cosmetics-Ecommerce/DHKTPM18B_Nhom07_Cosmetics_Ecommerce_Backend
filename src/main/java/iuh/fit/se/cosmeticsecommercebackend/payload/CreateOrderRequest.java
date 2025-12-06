@@ -17,6 +17,14 @@ public class CreateOrderRequest {
     private BigDecimal shippingFee;
     private BigDecimal discount;
     private List<OrderDetailRequest> orderDetails;
+    private List<Long> cartItemIds;
+
+    private String shippingFullName;
+    private String shippingPhone;
+    private String shippingAddress;
+    private String shippingCity;
+    private String shippingState;
+    private String shippingCountry;
 
     public Long getCustomerId() {
         return customerId;
@@ -80,5 +88,62 @@ public class CreateOrderRequest {
 
     public void setOrderDetails(List<OrderDetailRequest> orderDetails) {
         this.orderDetails = orderDetails;
+    }
+
+    public List<Long> getCartItemIds() {
+        return cartItemIds;
+    }
+
+    public void setCartItemIds(List<Long> cartItemIds) {
+        this.cartItemIds = cartItemIds;
+    }
+
+
+    public String getShippingFullName() {
+        return shippingFullName;
+    }
+
+    public void setShippingFullName(String shippingFullName) {
+        this.shippingFullName = shippingFullName;
+    }
+
+    public String getShippingPhone() {
+        return shippingPhone;
+    }
+
+    public void setShippingPhone(String shippingPhone) {
+        this.shippingPhone = shippingPhone;
+    }
+
+    public String getShippingAddress() {
+        return shippingAddress;
+    }
+
+    public void setShippingAddress(String shippingAddress) {
+        this.shippingAddress = shippingAddress;
+    }
+
+    public String getShippingCity() {
+        return shippingCity;
+    }
+
+    public void setShippingCity(String shippingCity) {
+        this.shippingCity = shippingCity;
+    }
+
+    public String getShippingState() {
+        return shippingState;
+    }
+
+    public void setShippingState(String shippingState) {
+        this.shippingState = shippingState;
+    }
+
+    public String getShippingCountry() {
+        return shippingCountry;
+    }
+
+    public void setShippingCountry(String shippingCountry) {
+        this.shippingCountry = shippingCountry;
     }
 }

@@ -32,7 +32,13 @@ public class OrderServiceImpl implements OrderService {
 
     @Autowired
     private iuh.fit.se.cosmeticsecommercebackend.service.RiskService riskService;
-    
+
+    @Autowired
+    private iuh.fit.se.cosmeticsecommercebackend.service.CartItemService cartItemService;
+
+    @Autowired
+    private iuh.fit.se.cosmeticsecommercebackend.repository.AddressRepository addressRepository;
+
     public OrderServiceImpl(OrderRepository orderRepo,
                             CustomerService customerService,
                             EmployeeService employeeService,
@@ -134,26 +140,44 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public CreateOrderResponse createOrderFromRequest(CreateOrderRequest request) {
-        // 1️⃣ Validation: Kiểm tra customerId tồn tại
-        if (request.getCustomerId() == null) {
-            throw new IllegalArgumentException("customerId không được để trống");
+        Customer customer = null;
+        Address address = null;
+        if (request.getCustomerId() != null && request.getCustomerId() > 0) {
+            customer = customerService.findById(request.getCustomerId());
+            if (customer == null) {
+                throw new ResourceNotFoundException("Không tìm thấy khách hàng với ID: " + request.getCustomerId());
+            }
         }
-        Customer customer = customerService.findById(request.getCustomerId());
-        if (customer == null) {
-            throw new ResourceNotFoundException("Không tìm thấy khách hàng với ID: " + request.getCustomerId());
+        if (request.getCustomerId() == null || request.getCustomerId() == 0) {
+            address = new Address();
+            address.setId(Address.generateAddressId());
+            address.setFullName(request.getShippingFullName());
+            address.setPhone(request.getShippingPhone());
+            address.setAddress(request.getShippingAddress());
+            address.setCity(request.getShippingCity());
+            address.setState(request.getShippingState());
+            address.setCountry(request.getShippingCountry());
+            address.setCustomer(null);
+            address.setDefault(false);
+            address = addressRepository.save(address);
+        } else if (request.getAddressId() != null) {
+            address = addressService.findById(request.getAddressId());
+            if (address == null) {
+                throw new ResourceNotFoundException("Không tìm thấy địa chỉ với ID: " + request.getAddressId());
+            }
+        } else {
+            address = new Address();
+            address.setFullName(request.getShippingFullName());
+            address.setPhone(request.getShippingPhone());
+            address.setAddress(request.getShippingAddress());
+            address.setCity(request.getShippingCity());
+            address.setState(request.getShippingState());
+            address.setCountry(request.getShippingCountry());
+            address.setCustomer(customer);
+            address.setDefault(false);
+            address = addressRepository.save(address);
         }
-
-        // 2️⃣ Validation: Kiểm tra addressId tồn tại và thuộc về customer
-        if (request.getAddressId() == null) {
-            throw new IllegalArgumentException("addressId không được để trống");
-        }
-        Address address = addressService.findById(request.getAddressId());
-        if (address == null) {
-            throw new ResourceNotFoundException("Không tìm thấy địa chỉ với ID: " + request.getAddressId());
-        }
-        if (!address.getCustomer().getId().equals(customer.getId())) {
-            throw new IllegalArgumentException("Địa chỉ không thuộc về khách hàng này");
-        }
+        // Nếu không đăng nhập thì bỏ qua address (address = null)
 
         // 3️⃣ Validation: Kiểm tra orderDetails không rỗng
         if (request.getOrderDetails() == null || request.getOrderDetails().isEmpty()) {
@@ -163,8 +187,8 @@ public class OrderServiceImpl implements OrderService {
         // 4️⃣ Tạo Order entity
         Order order = new Order();
         order.setId(generateNewOrderId());
-        order.setCustomer(customer);
-        order.setAddress(address);
+        order.setCustomer(customer); // null nếu không đăng nhập hoặc customerId = 0
+        order.setAddress(address);   // luôn lưu address
         order.setOrderDate(LocalDateTime.now());
         order.setStatus(OrderStatus.PENDING);
         
@@ -238,8 +262,8 @@ public class OrderServiceImpl implements OrderService {
         // 9️⃣ Tạo response DTO
         CreateOrderResponse response = new CreateOrderResponse();
         response.setId(savedOrder.getId());
-        response.setCustomerId(savedOrder.getCustomer().getId());
-        response.setAddressId(savedOrder.getAddress().getId());
+        response.setCustomerId(savedOrder.getCustomer() != null ? savedOrder.getCustomer().getId() : null);
+        response.setAddressId(savedOrder.getAddress() != null ? savedOrder.getAddress().getId() : null);
         response.setOrderDate(savedOrder.getOrderDate());
         response.setStatus(savedOrder.getStatus().name());
         response.setTotalAmount(savedOrder.getTotal());
@@ -258,6 +282,13 @@ public class OrderServiceImpl implements OrderService {
             detailResponses.add(detailResponse);
         }
         response.setOrderDetails(detailResponses);
+
+        // Xóa các CartItem tương ứng sau khi tạo đơn hàng thành công
+        if (request.getCartItemIds() != null && !request.getCartItemIds().isEmpty()) {
+            for (Long cartItemId : request.getCartItemIds()) {
+                cartItemService.deleteCartItemById(cartItemId);
+            }
+        }
 
         return response;
     }
@@ -314,7 +345,7 @@ public class OrderServiceImpl implements OrderService {
 
         // 2. Buộc tải Address
         if (order.getAddress() != null) {
-            order.getAddress().getId();
+            order.getAddress().generateAddressId();
             order.getAddress().getFullName();
             order.getAddress().getPhone();
             order.getAddress().getAddress();

@@ -51,10 +51,10 @@ public class Order {
      * Nhiều Order thuộc về 1 Customer
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id", nullable = false)
+    @JoinColumn(name = "customer_id", nullable = true)
     @JsonManagedReference("order-customer")
     private Customer customer;
-    
+
     /**
      * Quan hệ n-1 với Employee
      * Nhiều Order được xử lý bởi 1 Employee
@@ -67,21 +67,22 @@ public class Order {
      * Nhiều Order có thể cùng 1 Address
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "address_id", nullable = false)
+    @JoinColumn(name = "address_id", nullable = true)
+    @JsonManagedReference("order-address")
     private Address address;
-    
+
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal total;
-    
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private OrderStatus status = OrderStatus.PENDING;
-    
+
     @Column(length = 500)
     private String cancelReason;
-    
+
     private LocalDateTime canceledAt;
-    
+
     @Column(nullable = false)
     private LocalDateTime orderDate=LocalDateTime.now();
     @Column(name = "shipping_fee", nullable = false, precision = 10, scale = 2)
@@ -213,4 +214,3 @@ public class Order {
         this.voucherRedemptions = voucherRedemptions;
     }
 }
-

@@ -93,7 +93,7 @@ public class SecurityConfig {
                 // CHO PHÉP TẤT CẢ TRONG LÚC DEV (sau này sửa lại)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/orders/admin/**").hasAnyAuthority("ADMIN", "EMPLOYEE")
-                        .requestMatchers("/api/orders", "/api/orders/**").authenticated()
+                        .requestMatchers("/api/orders", "/api/orders/**", "/api/addresses/**" ).permitAll()
                         .anyRequest().permitAll()
                 )
                 .csrf(AbstractHttpConfigurer::disable)

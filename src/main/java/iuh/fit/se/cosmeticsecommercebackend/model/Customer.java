@@ -60,7 +60,7 @@ public class Customer {
      * 1 Customer có nhiều Order (đơn hàng)
      */
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonBackReference("order-customer")
+    @JsonManagedReference
     private List<Order> orders = new ArrayList<>();
 
     /**
