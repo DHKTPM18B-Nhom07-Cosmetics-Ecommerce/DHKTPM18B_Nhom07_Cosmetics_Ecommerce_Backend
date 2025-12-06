@@ -6,6 +6,8 @@ import iuh.fit.se.cosmeticsecommercebackend.model.Order;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.OrderStatus;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -36,4 +38,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     //tim don hang co total nam trong 1 khoang
     List<Order>findByTotalBetween(BigDecimal minTotal, BigDecimal maxTotal);
 
+
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.customer.account.id = :accountId AND o.status = :status AND o.orderDate >= :startTime")
+    long countOrdersByStatusAndDate(
+            @Param("accountId") Long accountId,
+            @Param("status") OrderStatus status,
+            @Param("startTime") LocalDateTime startTime
+    );
 }

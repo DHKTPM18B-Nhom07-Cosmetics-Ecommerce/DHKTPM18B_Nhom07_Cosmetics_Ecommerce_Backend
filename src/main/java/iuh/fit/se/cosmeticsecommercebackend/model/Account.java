@@ -56,6 +56,21 @@ public class Account {
     @Column(length = 20)
     private String phoneNumber;
 
+    // --- THÊM CÁI NÀY ---
+    @Transient // Đánh dấu: Không lưu xuống DB
+    private String riskLevel = "NORMAL"; // Mặc định là bình thường
+
+    @Transient
+    private String riskNote = ""; // Ghi chú ngắn gọn (VD: Spam 5 đơn)
+
+    // Getter & Setter cho 2 field này
+    public String getRiskLevel() { return riskLevel; }
+    public void setRiskLevel(String riskLevel) { this.riskLevel = riskLevel; }
+
+    public String getRiskNote() { return riskNote; }
+    public void setRiskNote(String riskNote) { this.riskNote = riskNote; }
+
+
     public Long getId() {
         return id;
     }

@@ -10,6 +10,7 @@ import iuh.fit.se.cosmeticsecommercebackend.repository.OrderRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.CustomerService;
 import iuh.fit.se.cosmeticsecommercebackend.service.EmployeeService;
 import iuh.fit.se.cosmeticsecommercebackend.service.OrderService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +25,8 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepo;
     private final CustomerService customerService;
     private final EmployeeService employeeService;
-
+    @Autowired
+    private iuh.fit.se.cosmeticsecommercebackend.service.RiskService riskService;
     public OrderServiceImpl(OrderRepository orderRepo,
                             CustomerService customerService,
                             EmployeeService employeeService) {
@@ -206,7 +208,7 @@ public class OrderServiceImpl implements OrderService {
         return calculateTotal(order);
     }
 
-    //  Khách hàng hủy đơn hàng
+    // Khách hàng hủy đơn hàng
     @Override
     public Order cancelByCustomer(Long orderId, String cancelReason, Customer customer) {
         Order order = findById(orderId);
@@ -222,14 +224,28 @@ public class OrderServiceImpl implements OrderService {
                     + order.getStatus());
         }
 
-        // Thực hiện hủy (Không cần Employee)
+        // Thực hiện hủy
         order.setStatus(OrderStatus.CANCELLED);
         order.setCancelReason(cancelReason);
         order.setCanceledAt(LocalDateTime.now());
 
-        // Hoàn trả tồn kho nếu cần
 
-        return orderRepo.save(order);
+        Order savedOrder = orderRepo.save(order);
+        try {
+            if (customer.getAccount() != null) {
+                // Hàm này chỉ tính toán trong RAM và gửi mail, KHÔNG ghi xuống DB
+                riskService.checkAndAlertOrderSpam(
+                        customer.getAccount().getId(),
+                        customer.getAccount().getUsername()
+                );
+            }
+        } catch (Exception e) {
+
+            System.err.println("Lỗi check risk (bỏ qua): " + e.getMessage());
+        }
+        // ==================================================================
+
+        return savedOrder;
     }
 
 

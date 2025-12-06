@@ -1,10 +1,14 @@
 package iuh.fit.se.cosmeticsecommercebackend.service;
 
+import iuh.fit.se.cosmeticsecommercebackend.model.Account;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
 
 @Service
 public class MailService {
@@ -16,7 +20,7 @@ public class MailService {
     public MailService(JavaMailSender javaMailSender) {
         this.javaMailSender = javaMailSender;
     }
-
+    private final String SENDER_EMAIL = "huynhlehoan151@gmail.com";
     /**
      * Gửi email xác nhận Token đặt lại mật khẩu
      * @param toEmail Địa chỉ email nhận
@@ -43,6 +47,81 @@ public class MailService {
         } catch (MailException e) {
             System.err.println("Lỗi gửi email đến " + toEmail + ": " + e.getMessage());
             // throw new RuntimeException("Không thể gửi email xác thực.", e);
+        }
+    }
+
+//    [THÊM MỚI] Gửi email thông báo cho USER khi tài khoản bị vô hiệu hoá
+@Async
+    public void sendAccountDisabledEmail(String toEmail, String fullName, String reason) {
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setFrom(SENDER_EMAIL);
+        message.setTo(toEmail);
+        message.setSubject("THÔNG BÁO: TÀI KHOẢN ĐÃ BỊ VÔ HIỆU HÓA | EMBROSIA");
+
+        String content = "Xin chào " + fullName + ",\n\n" +
+                "Tài khoản của bạn tại hệ thống Embrosia đã bị vô hiệu hóa bởi quản trị viên.\n\n" +
+                "LÝ DO: " + reason + "\n\n" +
+                "Nếu bạn cho rằng đây là sự nhầm lẫn, vui lòng liên hệ bộ phận Chăm sóc khách hàng để được hỗ trợ.\n" +
+                "Trân trọng,\n" +
+                "Đội ngũ Embrosia.";
+
+        message.setText(content);
+
+        try {
+            javaMailSender.send(message);
+            System.out.println("Email thông báo khóa tài khoản đã gửi đến: " + toEmail);
+        } catch (MailException e) {
+            System.err.println("Lỗi gửi email khóa tài khoản: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 3. [THÊM MỚI] Gửi email cảnh báo cho ADMIN khi có tài khoản bị khoá
+     */
+    @Async
+    public void sendAdminAlertEmail(String adminEmail, Account lockedAccount, String reason) {
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setFrom(SENDER_EMAIL);
+        message.setTo(adminEmail);
+        message.setSubject("[ALERT] TÀI KHOẢN ĐÃ BỊ KHÓA: " + lockedAccount.getUsername());
+
+        String content = "HỆ THỐNG GHI NHẬN HÀNH ĐỘNG KHÓA TÀI KHOẢN:\n\n" +
+                "- Tài khoản bị khóa: " + lockedAccount.getUsername() + " (ID: " + lockedAccount.getId() + ")\n" +
+                "- Tên người dùng: " + lockedAccount.getFullName() + "\n" +
+                "- Lý do khóa: " + reason + "\n" +
+                "- Thời gian thực hiện: " + LocalDateTime.now() + "\n\n" +
+                "Vui lòng kiểm tra lại nếu cần thiết.";
+
+        message.setText(content);
+
+        try {
+            javaMailSender.send(message);
+            System.out.println("Email cảnh báo Admin đã gửi đến: " + adminEmail);
+        } catch (MailException e) {
+            System.err.println("Lỗi gửi email Admin: " + e.getMessage());
+        }
+    }
+    @Async
+    public void sendSecurityWarningToUser(String toEmail, String fullName) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(SENDER_EMAIL);
+        message.setTo(toEmail);
+        message.setSubject("⚠️ CẢNH BÁO BẢO MẬT: ĐĂNG NHẬP THẤT BẠI NHIỀU LẦN");
+
+        String content = "Xin chào " + (fullName != null ? fullName : "Quý khách") + ",\n\n" +
+                "Hệ thống phát hiện tài khoản của bạn vừa có hơn 5 lần đăng nhập thất bại liên tiếp.\n" +
+                "Nếu không phải bạn thực hiện, vui lòng đổi mật khẩu ngay lập tức hoặc liên hệ Admin để khóa tài khoản tạm thời.\n\n" +
+                "IP truy cập: (Hệ thống ghi nhận)\n" +
+                "Thời gian: " + java.time.LocalDateTime.now() + "\n\n" +
+                "Trân trọng,\nĐội ngũ Embrosia.";
+
+        message.setText(content);
+        try {
+            javaMailSender.send(message);
+        } catch (Exception e) {
+            System.err.println("Lỗi gửi mail user warning: " + e.getMessage());
         }
     }
 }
