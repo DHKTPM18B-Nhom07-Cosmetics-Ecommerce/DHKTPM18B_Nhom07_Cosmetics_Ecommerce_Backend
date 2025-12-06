@@ -4,6 +4,8 @@ import iuh.fit.se.cosmeticsecommercebackend.model.Customer;
 import iuh.fit.se.cosmeticsecommercebackend.model.Employee;
 import iuh.fit.se.cosmeticsecommercebackend.model.Order;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.OrderStatus;
+import iuh.fit.se.cosmeticsecommercebackend.payload.CreateOrderRequest;
+import iuh.fit.se.cosmeticsecommercebackend.payload.CreateOrderResponse;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -11,6 +13,8 @@ import java.util.List;
 
 public interface OrderService {
     Order createOrder(Order order);
+    
+    CreateOrderResponse createOrderFromRequest(CreateOrderRequest request);
 
     List<Order> getAll();
 
@@ -37,16 +41,20 @@ public interface OrderService {
      * Lấy chi tiết một đơn hàng, có kiểm tra xem đơn hàng đó có thuộc về username hay không.
      */
     Order getCustomerOrderById(String orderId, String username);
+
     //NGHIEP VU XU LY TRANG THAI
     //huy don hang boi nhan vien
     Order cancelByEmployee(String id, String cancelReason, Employee employee);
     //khach hang yeu cau huy don hang
+
     Order cancelByCustomer(String orderId, String cancelReason, Customer customer);
     //yeu cau hoan tra
     Order requestReturn(String id, String returnReason, Employee employee);
+
     //hoan tat xu ly hoan tien
     Order processRefund(String id, Employee employee);
     //thay doi trang thai theo quy trinh nghiep vu
+
     Order updateStatus(String id, OrderStatus newStatus, String cancelReason, Employee employee);
     //tinh tong tien don hang dua tren chi tiet don hang
     BigDecimal calculateTotal(String orderId);

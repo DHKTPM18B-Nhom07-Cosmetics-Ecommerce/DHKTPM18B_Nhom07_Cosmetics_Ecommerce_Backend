@@ -1,15 +1,14 @@
 package iuh.fit.se.cosmeticsecommercebackend.service.impl;
 
 import iuh.fit.se.cosmeticsecommercebackend.exception.ResourceNotFoundException;
-import iuh.fit.se.cosmeticsecommercebackend.model.Customer;
-import iuh.fit.se.cosmeticsecommercebackend.model.Employee;
-import iuh.fit.se.cosmeticsecommercebackend.model.Order;
-import iuh.fit.se.cosmeticsecommercebackend.model.OrderDetail;
+import iuh.fit.se.cosmeticsecommercebackend.model.*;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.OrderStatus;
+import iuh.fit.se.cosmeticsecommercebackend.payload.CreateOrderRequest;
+import iuh.fit.se.cosmeticsecommercebackend.payload.CreateOrderResponse;
+import iuh.fit.se.cosmeticsecommercebackend.payload.OrderDetailRequest;
+import iuh.fit.se.cosmeticsecommercebackend.payload.OrderDetailResponse;
 import iuh.fit.se.cosmeticsecommercebackend.repository.OrderRepository;
-import iuh.fit.se.cosmeticsecommercebackend.service.CustomerService;
-import iuh.fit.se.cosmeticsecommercebackend.service.EmployeeService;
-import iuh.fit.se.cosmeticsecommercebackend.service.OrderService;
+import iuh.fit.se.cosmeticsecommercebackend.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,14 +27,22 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepo;
     private final CustomerService customerService;
     private final EmployeeService employeeService;
+    private final AddressService addressService;
+    private final ProductVariantService productVariantService;
+
     @Autowired
     private iuh.fit.se.cosmeticsecommercebackend.service.RiskService riskService;
+    
     public OrderServiceImpl(OrderRepository orderRepo,
                             CustomerService customerService,
-                            EmployeeService employeeService) {
+                            EmployeeService employeeService,
+                            AddressService addressService,
+                            ProductVariantService productVariantService) {
         this.orderRepo = orderRepo;
         this.customerService = customerService;
         this.employeeService = employeeService;
+        this.addressService = addressService;
+        this.productVariantService = productVariantService;
     }
 
     /**
@@ -116,6 +124,142 @@ public class OrderServiceImpl implements OrderService {
 
         // 4️⃣ Lưu đơn hàng (cascade sẽ tự lưu OrderDetail)
         return orderRepo.save(order);
+    }
+
+    /**
+     * Tạo đơn hàng từ DTO request (dành cho Frontend gửi JSON payload)
+     * @param request CreateOrderRequest chứa thông tin đơn hàng từ FE
+     * @return CreateOrderResponse chứa thông tin đơn hàng đã tạo
+     */
+    @Override
+    @Transactional
+    public CreateOrderResponse createOrderFromRequest(CreateOrderRequest request) {
+        // 1️⃣ Validation: Kiểm tra customerId tồn tại
+        if (request.getCustomerId() == null) {
+            throw new IllegalArgumentException("customerId không được để trống");
+        }
+        Customer customer = customerService.findById(request.getCustomerId());
+        if (customer == null) {
+            throw new ResourceNotFoundException("Không tìm thấy khách hàng với ID: " + request.getCustomerId());
+        }
+
+        // 2️⃣ Validation: Kiểm tra addressId tồn tại và thuộc về customer
+        if (request.getAddressId() == null) {
+            throw new IllegalArgumentException("addressId không được để trống");
+        }
+        Address address = addressService.findById(request.getAddressId());
+        if (address == null) {
+            throw new ResourceNotFoundException("Không tìm thấy địa chỉ với ID: " + request.getAddressId());
+        }
+        if (!address.getCustomer().getId().equals(customer.getId())) {
+            throw new IllegalArgumentException("Địa chỉ không thuộc về khách hàng này");
+        }
+
+        // 3️⃣ Validation: Kiểm tra orderDetails không rỗng
+        if (request.getOrderDetails() == null || request.getOrderDetails().isEmpty()) {
+            throw new IllegalArgumentException("Đơn hàng phải có ít nhất 1 sản phẩm");
+        }
+
+        // 4️⃣ Tạo Order entity
+        Order order = new Order();
+        order.setId(generateNewOrderId());
+        order.setCustomer(customer);
+        order.setAddress(address);
+        order.setOrderDate(LocalDateTime.now());
+        order.setStatus(OrderStatus.PENDING);
+        
+        // Xử lý shipping fee và discount
+        BigDecimal shippingFee = request.getShippingFee() != null ? request.getShippingFee() : new BigDecimal("30000.00");
+        order.setShippingFee(shippingFee);
+
+        // 5️⃣ Xử lý OrderDetails với validation
+        List<OrderDetail> orderDetails = new ArrayList<>();
+        BigDecimal calculatedTotal = BigDecimal.ZERO;
+
+        for (OrderDetailRequest detailRequest : request.getOrderDetails()) {
+            // Validation: Kiểm tra productVariantId
+            if (detailRequest.getProductVariantId() == null) {
+                throw new IllegalArgumentException("productVariantId không được để trống");
+            }
+            
+            ProductVariant productVariant = productVariantService.getById(detailRequest.getProductVariantId());
+            if (productVariant == null) {
+                throw new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + detailRequest.getProductVariantId());
+            }
+
+            // Validation: Kiểm tra số lượng
+            if (detailRequest.getQuantity() == null || detailRequest.getQuantity() <= 0) {
+                throw new IllegalArgumentException("Số lượng phải lớn hơn 0");
+            }
+
+            // Validation: Kiểm tra tồn kho
+            if (productVariant.getQuantity() < detailRequest.getQuantity()) {
+                throw new IllegalArgumentException(
+                    String.format("Sản phẩm '%s' không đủ số lượng. Còn lại: %d, yêu cầu: %d",
+                        productVariant.getVariantName(),
+                        productVariant.getQuantity(),
+                        detailRequest.getQuantity())
+                );
+            }
+
+            // Tạo OrderDetail
+            OrderDetail orderDetail = new OrderDetail();
+            orderDetail.setOrder(order);
+            orderDetail.setProductVariant(productVariant);
+            orderDetail.setQuantity(detailRequest.getQuantity());
+            
+            // Sử dụng giá từ ProductVariant thay vì tin tưởng hoàn toàn FE
+            BigDecimal unitPrice = productVariant.getPrice();
+            orderDetail.setUnitPrice(unitPrice);
+            
+            // Tính totalPrice cho OrderDetail
+            BigDecimal totalPrice = unitPrice.multiply(BigDecimal.valueOf(detailRequest.getQuantity()));
+            orderDetail.setTotalPrice(totalPrice);
+            orderDetail.setDiscountAmount(BigDecimal.ZERO);
+
+            orderDetails.add(orderDetail);
+            calculatedTotal = calculatedTotal.add(totalPrice);
+
+            // Giảm tồn kho
+            productVariant.setQuantity(productVariant.getQuantity() - detailRequest.getQuantity());
+        }
+
+        // 6️⃣ Gán OrderDetails vào Order
+        order.setOrderDetails(orderDetails);
+
+        // 7️⃣ Tính tổng tiền cuối cùng (bao gồm shipping fee, trừ discount nếu có)
+        BigDecimal discount = request.getDiscount() != null ? request.getDiscount() : BigDecimal.ZERO;
+        BigDecimal finalTotal = calculatedTotal.add(shippingFee).subtract(discount);
+        order.setTotal(finalTotal);
+
+        // 8️⃣ Lưu đơn hàng (cascade sẽ tự lưu OrderDetail)
+        Order savedOrder = orderRepo.save(order);
+
+        // 9️⃣ Tạo response DTO
+        CreateOrderResponse response = new CreateOrderResponse();
+        response.setId(savedOrder.getId());
+        response.setCustomerId(savedOrder.getCustomer().getId());
+        response.setAddressId(savedOrder.getAddress().getId());
+        response.setOrderDate(savedOrder.getOrderDate());
+        response.setStatus(savedOrder.getStatus().name());
+        response.setTotalAmount(savedOrder.getTotal());
+        response.setShippingFee(savedOrder.getShippingFee());
+        response.setDiscount(discount);
+
+        // Map OrderDetails sang OrderDetailResponse
+        List<OrderDetailResponse> detailResponses = new ArrayList<>();
+        for (OrderDetail detail : savedOrder.getOrderDetails()) {
+            OrderDetailResponse detailResponse = new OrderDetailResponse();
+            detailResponse.setId(detail.getId());
+            detailResponse.setProductVariantId(detail.getProductVariant().getId());
+            detailResponse.setQuantity(detail.getQuantity());
+            detailResponse.setPrice(detail.getUnitPrice());
+            detailResponse.setSubtotal(detail.getTotalPrice());
+            detailResponses.add(detailResponse);
+        }
+        response.setOrderDetails(detailResponses);
+
+        return response;
     }
 
     // ============================= CRUD CƠ BẢN =============================

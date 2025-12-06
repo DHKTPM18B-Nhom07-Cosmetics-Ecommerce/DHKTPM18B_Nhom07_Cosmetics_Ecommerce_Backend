@@ -5,6 +5,8 @@ import iuh.fit.se.cosmeticsecommercebackend.model.Customer;
 import iuh.fit.se.cosmeticsecommercebackend.model.Employee;
 import iuh.fit.se.cosmeticsecommercebackend.model.Order;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.OrderStatus;
+import iuh.fit.se.cosmeticsecommercebackend.payload.CreateOrderRequest;
+import iuh.fit.se.cosmeticsecommercebackend.payload.CreateOrderResponse;
 import iuh.fit.se.cosmeticsecommercebackend.service.CustomerService;
 import iuh.fit.se.cosmeticsecommercebackend.service.EmployeeService;
 import iuh.fit.se.cosmeticsecommercebackend.service.OrderService;
@@ -32,11 +34,11 @@ public class OrderController {
 
     // --- CRUD CƠ BẢN ---
 
-    /** POST /api/orders : Tạo đơn hàng mới */
+    /** POST /api/orders : Tạo đơn hàng mới từ JSON payload */
     @PostMapping
-    public ResponseEntity<Order> createOrder(@RequestBody Order order) {
-        Order newOrder = orderService.createOrder(order);
-        return new ResponseEntity<>(newOrder, HttpStatus.CREATED);
+    public ResponseEntity<CreateOrderResponse> createOrder(@RequestBody CreateOrderRequest request) {
+        CreateOrderResponse response = orderService.createOrderFromRequest(request);
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
     /** * GET /api/orders/{id} : Lấy thông tin chi tiết đơn hàng (Dành cho Khách hàng). */
