@@ -54,7 +54,7 @@ public class ProductVariant {
     //@JsonIgnore
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "product_id", nullable = false)
-    @JsonIgnore
+   // @JsonIgnore
     private Product product;
 
     /**

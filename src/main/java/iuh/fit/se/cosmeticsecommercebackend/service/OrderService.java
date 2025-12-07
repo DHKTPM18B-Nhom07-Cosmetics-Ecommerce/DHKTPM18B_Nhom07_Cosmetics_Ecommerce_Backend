@@ -35,6 +35,8 @@ public interface OrderService {
     List<Order> findByStatusAndCustomer(OrderStatus status, Customer customer);
     //tim theo tong gia tri trong khoang
     List<Order> findByTotalBetween(BigDecimal minTotal, BigDecimal maxTotal);
+    // Trong OrderService.java
+    List<Order> findByStatusAndOrderDateBetween(OrderStatus status, LocalDateTime startDate, LocalDateTime endDate);
     // Phương thức mới: Lấy đơn hàng của khách hàng dựa trên ID/Username
     List<Order> getMyOrders(String username);
     /**

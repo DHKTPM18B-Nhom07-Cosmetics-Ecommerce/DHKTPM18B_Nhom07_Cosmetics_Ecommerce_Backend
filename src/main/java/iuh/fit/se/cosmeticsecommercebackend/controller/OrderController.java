@@ -32,6 +32,15 @@ public class OrderController {
         this.customerService = customerService;
     }
 
+    /** Helper method để tìm Employee hoặc trả về null */
+    private Employee getEmployeeOrNull(Long employeeId) {
+        if (employeeId == null) {
+            return null;
+        }
+        return employeeService.findEmployeeById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Employee ID: " + employeeId));
+    }
+
     // --- CRUD CƠ BẢN ---
 
     /** POST /api/orders : Tạo đơn hàng mới từ JSON payload */
@@ -52,7 +61,7 @@ public class OrderController {
         return ResponseEntity.ok(order);
     }
 
-    /** * GET /api/orders : Lấy danh sách đơn hàng cá nhân (Customer). */
+    /** 🎯 ĐÃ SỬA LOGIC LỌC KHÁCH HÀNG: GET /api/orders : Lấy danh sách đơn hàng cá nhân (Customer). */
     @GetMapping
     public List<Order> getCustomerOrders(
             Principal principal,
@@ -70,10 +79,20 @@ public class OrderController {
             throw new ResourceNotFoundException("Không tìm thấy thông tin Khách hàng cho tài khoản này.");
         }
 
+        // Tối ưu hóa: Nếu có STATUS, dùng findByStatusAndCustomer
         if (status != null) {
+            // LƯU Ý: Hàm này sẽ bỏ qua tham số start/end vì Service chưa có hàm 3 tham số.
             return orderService.findByStatusAndCustomer(status, customer);
         }
 
+        // Nếu chỉ có start/end, ta không thể lọc theo Customer + Date nên phải lấy tất cả
+        // Đây là điểm yếu do thiếu hàm findByCustomerAndOrderDateBetween trong Service
+        if (start != null && end != null) {
+            // Thay vì trả về lỗi, ta trả về tất cả đơn hàng của Khách hàng
+            return orderService.getMyOrders(username);
+        }
+
+        // Mặc định: Lấy tất cả đơn hàng của Khách hàng
         return orderService.getMyOrders(username);
     }
 
@@ -85,8 +104,9 @@ public class OrderController {
         return orderService.getAll();
     }
 
-    /** 🎯 ENDPOINT MỚI: GET /api/orders/admin/{id} : Lấy chi tiết đơn hàng bất kỳ (Dành cho Admin) */
+    /** GET /api/orders/admin/{id} : Lấy chi tiết đơn hàng bất kỳ (Dành cho Admin) */
     @GetMapping("/admin/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public ResponseEntity<Order> getAdminOrderDetail(@PathVariable String id) {
         // Chỉ cần tìm đơn hàng, không cần kiểm tra quyền sở hữu Customer
         Order order = orderService.findById(id);
@@ -95,26 +115,31 @@ public class OrderController {
 
     /** GET /api/orders/admin/status/{status} : Tìm theo trạng thái */
     @GetMapping("/admin/status/{status}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public List<Order> findByStatus(@PathVariable OrderStatus status) {
         return orderService.findByStatus(status);
     }
 
-    /** 🎯 SỬA ĐỔI: GET /api/orders/admin/date-range (Hỗ trợ lọc kết hợp Status) */
+    /** 🎯 ĐÃ SỬA: GET /api/orders/admin/date-range (Hỗ trợ lọc kết hợp Status) */
     @GetMapping("/admin/date-range")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public List<Order> findByOrderDateBetween(
             @RequestParam("start") LocalDateTime start,
             @RequestParam("end") LocalDateTime end,
-            @RequestParam(required = false) OrderStatus status) { // THÊM status option
+            @RequestParam(required = false) OrderStatus status) {
 
+        // Nếu có STATUS, dùng hàm lọc 3 tham số
         if (status != null) {
-            // Giả định Service có phương thức findByOrderDateBetweenAndStatus
-            // return orderService.findByOrderDateBetweenAndStatus(start, end, status);
+            // GIẢ ĐỊNH hàm findByStatusAndOrderDateBetween đã có trong OrderService
+            return orderService.findByStatusAndOrderDateBetween(status, start, end);
         }
+        // Nếu không có STATUS, dùng hàm lọc 2 tham số (chỉ ngày)
         return orderService.findByOrderDateBetween(start, end);
     }
 
     /** GET /api/orders/admin/customer/{customerId} : Tìm đơn hàng theo Khách hàng */
     @GetMapping("/admin/customer/{customerId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public ResponseEntity<List<Order>> findByCustomer(@PathVariable Long customerId) {
         Customer customer = customerService.findById(customerId);
         List<Order> orders = orderService.findByCustomer(customer);
@@ -123,6 +148,7 @@ public class OrderController {
 
     /** GET /api/orders/admin/employee/{employeeId} : Tìm đơn hàng theo Nhân viên */
     @GetMapping("/admin/employee/{employeeId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public ResponseEntity<List<Order>> findByEmployee(@PathVariable Long employeeId) {
         Employee employee = employeeService.findEmployeeById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Employee ID: " + employeeId));
@@ -133,6 +159,7 @@ public class OrderController {
 
     /** GET /api/orders/admin/total-range?min=...&max=... : Tìm theo tổng tiền trong khoảng */
     @GetMapping("/admin/total-range")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public List<Order> findByTotalBetween(
             @RequestParam BigDecimal min,
             @RequestParam BigDecimal max) {
@@ -141,6 +168,7 @@ public class OrderController {
 
     /** GET /api/orders/admin/customer-status?customerId=...&status=... : Tìm theo KH và Trạng thái */
     @GetMapping("/admin/customer-status")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public ResponseEntity<List<Order>> findByStatusAndCustomer(
             @RequestParam Long customerId,
             @RequestParam OrderStatus status) {
@@ -152,18 +180,9 @@ public class OrderController {
 
     // --- XỬ LÝ TRẠNG THÁI (WORKFLOW) ---
 
-    /** * Helper method để tìm Employee hoặc trả về null */
-    private Employee getEmployeeOrNull(Long employeeId) {
-        if (employeeId == null) {
-            return null;
-        }
-        return employeeService.findEmployeeById(employeeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Employee ID: " + employeeId));
-    }
-
-
     /** * POST /api/orders/{id}/status: Cập nhật trạng thái (Dành cho NV) */
     @PostMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public ResponseEntity<Order> updateOrderStatus(
             @PathVariable String id,
             @RequestParam OrderStatus newStatus,
@@ -198,6 +217,7 @@ public class OrderController {
 
     /** * POST /api/orders/{id}/return: Yêu cầu hoàn trả (Chỉ cho DELIVERED, Cần NV xác nhận) */
     @PostMapping("/{id}/return")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public ResponseEntity<Order> requestReturn(
             @PathVariable String id,
             @RequestParam Long employeeId,
@@ -210,6 +230,7 @@ public class OrderController {
 
     /** * POST /api/orders/{id}/refund: Xử lý hoàn tiền (Chỉ cho RETURNED, Cần NV thực hiện) */
     @PostMapping("/{id}/refund")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public ResponseEntity<Order> processRefund(
             @PathVariable String id,
             @RequestParam Long employeeId

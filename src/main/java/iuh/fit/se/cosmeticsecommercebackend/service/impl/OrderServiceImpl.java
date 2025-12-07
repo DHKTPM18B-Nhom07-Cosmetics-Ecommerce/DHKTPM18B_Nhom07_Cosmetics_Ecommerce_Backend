@@ -60,39 +60,73 @@ public class OrderServiceImpl implements OrderService {
         String today = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String prefix = "OD-" + today; // Ví dụ: OD-20251205
 
-        // Sử dụng phương thức repository mới để tìm ID lớn nhất trong ngày
-        // Việc này cần chạy trong cùng transaction để đảm bảo isolation.
         Optional<String> lastIdOptional = orderRepo.findLastOrderIdByDatePrefix(prefix);
 
-        int sequence = 1; // Mặc định là 01 nếu chưa có đơn hàng nào
+        int sequence = 1;
 
         if (lastIdOptional.isPresent()) {
             String lastId = lastIdOptional.get();
             try {
-                // Lấy 2 ký tự cuối (số thứ tự)
                 String sequenceStr = lastId.substring(lastId.length() - 2);
-
-                // Chuyển sang số nguyên và tăng lên 1
                 sequence = Integer.parseInt(sequenceStr) + 1;
             } catch (NumberFormatException e) {
-                // Xử lý lỗi nếu format ID bị sai (nên log lỗi này)
                 System.err.println("Lỗi parse ID đơn hàng: " + lastId);
-                // Vẫn giữ sequence = 1 và tiếp tục.
                 sequence = 1;
             }
         }
 
-        // Định dạng lại số thứ tự thành 2 chữ số (ví dụ: 1 -> 01, 15 -> 15)
         String newSequence = String.format("%02d", sequence);
 
         return prefix + newSequence;
     }
 
+    /**
+     * Buộc tải các thuộc tính cần thiết cho danh sách đơn hàng (list view).
+     * Dùng chung cho tất cả các phương thức trả về List<Order>.
+     */
+    private void forceLoadOrderListDetails(List<Order> orders) {
+        for (Order order : orders) {
+            // 1. Buộc tải Customer và Account (để lấy tên Khách hàng)
+            if (order.getCustomer() != null && order.getCustomer().getAccount() != null) {
+                order.getCustomer().getAccount().getFullName();
+            }
+
+            // 2. Buộc tải OrderDetails và Product/Image
+            if (order.getOrderDetails() != null) {
+                order.getOrderDetails().size();
+
+                order.getOrderDetails().forEach(detail -> {
+                    if (detail.getProductVariant() != null) {
+                        detail.getProductVariant().getId();
+
+                        // Bổ sung: Buộc tải Product (chứa tên)
+                        if (detail.getProductVariant().getProduct() != null) {
+                            detail.getProductVariant().getProduct().getName();
+                        }
+                        // Bổ sung: Buộc tải ImageUrls (ElementCollection trong ProductVariant)
+                        if (detail.getProductVariant().getImageUrls() != null) {
+                            detail.getProductVariant().getImageUrls().size();
+                        }
+                    }
+                });
+            }
+            // 3. Buộc tải Address
+            if (order.getAddress() != null) {
+                order.getAddress().getAddress();
+            }
+            // 4. Buộc tải Employee (nếu có)
+            if (order.getEmployee() != null) {
+                order.getEmployee().getId();
+            }
+        }
+    }
+
+
     // ============================= TẠO ĐƠN HÀNG =============================
 
     @Override
     public Order createOrder(Order order) {
-        // 1️⃣ Kiểm tra khách hàng
+        // ... (Giữ nguyên logic tạo Order)
         if (order.getCustomer() == null || order.getCustomer().getId() == null) {
             throw new IllegalArgumentException("Đơn hàng phải có khách hàng hợp lệ.");
         }
@@ -100,21 +134,16 @@ public class OrderServiceImpl implements OrderService {
         Customer customer = customerService.findById(order.getCustomer().getId());
         order.setCustomer(customer);
 
-        // 2️⃣ Gán thông tin mặc định
         order.setOrderDate(LocalDateTime.now());
         order.setStatus(OrderStatus.PENDING);
 
-        // 🚨 KHẮC PHỤC: GÁN ID TÙY CHỈNH
         order.setId(generateNewOrderId());
 
-        // 3️⃣ Gắn lại quan hệ 2 chiều và tính tổng tiền
         if (order.getOrderDetails() != null && !order.getOrderDetails().isEmpty()) {
             for (OrderDetail detail : order.getOrderDetails()) {
                 detail.setOrder(order);
-                // Đảm bảo totalPrice trong OrderDetail được tính đúng
                 if (detail.getUnitPrice() != null && detail.getQuantity() != null && detail.getQuantity() > 0) {
                     BigDecimal price = detail.getUnitPrice().multiply(BigDecimal.valueOf(detail.getQuantity()));
-                    // Trừ đi discountAmount (nếu có)
                     if (detail.getDiscountAmount() != null) {
                         price = price.subtract(detail.getDiscountAmount());
                     }
@@ -125,17 +154,13 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        // Gọi hàm tính tổng tiền cuối cùng (bao gồm cả phí vận chuyển, nếu có)
         order.setTotal(calculateTotal(order));
 
-        // 4️⃣ Lưu đơn hàng (cascade sẽ tự lưu OrderDetail)
         return orderRepo.save(order);
     }
 
     /**
      * Tạo đơn hàng từ DTO request (dành cho Frontend gửi JSON payload)
-     * @param request CreateOrderRequest chứa thông tin đơn hàng từ FE
-     * @return CreateOrderResponse chứa thông tin đơn hàng đã tạo
      */
     @Override
     @Transactional
@@ -191,7 +216,7 @@ public class OrderServiceImpl implements OrderService {
         order.setAddress(address);   // luôn lưu address
         order.setOrderDate(LocalDateTime.now());
         order.setStatus(OrderStatus.PENDING);
-        
+
         // Xử lý shipping fee và discount
         BigDecimal shippingFee = request.getShippingFee() != null ? request.getShippingFee() : new BigDecimal("30000.00");
         order.setShippingFee(shippingFee);
@@ -205,7 +230,7 @@ public class OrderServiceImpl implements OrderService {
             if (detailRequest.getProductVariantId() == null) {
                 throw new IllegalArgumentException("productVariantId không được để trống");
             }
-            
+
             ProductVariant productVariant = productVariantService.getById(detailRequest.getProductVariantId());
             if (productVariant == null) {
                 throw new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + detailRequest.getProductVariantId());
@@ -219,10 +244,10 @@ public class OrderServiceImpl implements OrderService {
             // Validation: Kiểm tra tồn kho
             if (productVariant.getQuantity() < detailRequest.getQuantity()) {
                 throw new IllegalArgumentException(
-                    String.format("Sản phẩm '%s' không đủ số lượng. Còn lại: %d, yêu cầu: %d",
-                        productVariant.getVariantName(),
-                        productVariant.getQuantity(),
-                        detailRequest.getQuantity())
+                        String.format("Sản phẩm '%s' không đủ số lượng. Còn lại: %d, yêu cầu: %d",
+                                productVariant.getVariantName(),
+                                productVariant.getQuantity(),
+                                detailRequest.getQuantity())
                 );
             }
 
@@ -231,11 +256,11 @@ public class OrderServiceImpl implements OrderService {
             orderDetail.setOrder(order);
             orderDetail.setProductVariant(productVariant);
             orderDetail.setQuantity(detailRequest.getQuantity());
-            
+
             // Sử dụng giá từ ProductVariant thay vì tin tưởng hoàn toàn FE
             BigDecimal unitPrice = productVariant.getPrice();
             orderDetail.setUnitPrice(unitPrice);
-            
+
             // Tính totalPrice cho OrderDetail
             BigDecimal totalPrice = unitPrice.multiply(BigDecimal.valueOf(detailRequest.getQuantity()));
             orderDetail.setTotalPrice(totalPrice);
@@ -293,28 +318,21 @@ public class OrderServiceImpl implements OrderService {
         return response;
     }
 
+    @Override
+    public List<Order> findByStatusAndOrderDateBetween(OrderStatus status, LocalDateTime startDate, LocalDateTime endDate) {
+        List<Order> orders = orderRepo.findByStatusAndOrderDateBetween(status, startDate, endDate);
+        // Rất quan trọng: Phải gọi hàm buộc tải để có Tên và Ảnh sản phẩm
+        forceLoadOrderListDetails(orders);
+        return orders;
+    }
     // ============================= CRUD CƠ BẢN =============================
 
     @Override
     @Transactional(readOnly = true)
     public List<Order> getAll() {
         List<Order> orders = orderRepo.findAll();
-
-        // Buộc tải các mối quan hệ cần thiết cho trang quản lý
-        for (Order order : orders) {
-            // 1. Buộc tải Customer và Account (để lấy tên Khách hàng)
-            if (order.getCustomer() != null && order.getCustomer().getAccount() != null) {
-                order.getCustomer().getAccount().getFullName();
-            }
-            // 2. Buộc tải OrderDetails (tùy chọn, để xem nhanh số lượng sản phẩm nếu cần)
-            if (order.getOrderDetails() != null) {
-                order.getOrderDetails().size();
-            }
-            // 3. Buộc tải Employee (nếu có)
-            if (order.getEmployee() != null) {
-                order.getEmployee().getId();
-            }
-        }
+        // SỬA: Sử dụng hàm buộc tải chung
+        forceLoadOrderListDetails(orders);
         return orders;
     }
 
@@ -332,12 +350,14 @@ public class OrderServiceImpl implements OrderService {
                 if (detail.getProductVariant() != null) {
                     detail.getProductVariant().getId();
 
-                    // BỔ SUNG: Buộc tải Product (nơi chứa tên sản phẩm và ảnh)
+                    // ĐÃ SỬA: Buộc tải Product (nơi chứa tên sản phẩm)
                     if (detail.getProductVariant().getProduct() != null) {
                         // Truy cập getName() để buộc tải Product Entity
                         detail.getProductVariant().getProduct().getName();
-                        // Buộc tải danh sách ảnh (images)
-                        detail.getProductVariant().getProduct().getImages().size();
+                    }
+                    // ĐÃ SỬA: Buộc tải danh sách ảnh (imageUrls trong ProductVariant)
+                    if (detail.getProductVariant().getImageUrls() != null) {
+                        detail.getProductVariant().getImageUrls().size();
                     }
                 }
             });
@@ -383,53 +403,48 @@ public class OrderServiceImpl implements OrderService {
     }
 
 
-//    @Override
-//    public Order updateOrder(String id, Order orderDetails) {
-//        Order existing = findById(id);
-//
-//        if (existing.getStatus() != OrderStatus.PENDING) {
-//            throw new IllegalStateException("Chỉ có thể chỉnh sửa đơn hàng khi trạng thái là PENDING. Trạng thái hiện tại: "
-//                    + existing.getStatus());
-//        }
-//
-//        // Cần cập nhật lại chi tiết đơn hàng (OrderDetails), tổng tiền và có thể là Address.
-//        // Chỉ đơn giản cập nhật Total là không đủ.
-//        throw new UnsupportedOperationException("Cập nhật đơn hàng (ngoài Total) cần logic phức tạp (cập nhật OrderDetails, Address, v.v.).");
-//
-//        // return orderRepo.save(existing);
-//    }
-
     // ============================= TRUY VẤN =============================
-    // (Các phương thức truy vấn được giữ nguyên vì chúng gọi trực tiếp từ Repository)
 
     @Override
     public List<Order> findByCustomer(Customer customer) {
-        return orderRepo.findByCustomer(customer);
+        List<Order> orders = orderRepo.findByCustomer(customer);
+        forceLoadOrderListDetails(orders);
+        return orders;
     }
 
     @Override
     public List<Order> findByEmployee(Employee employee) {
-        return orderRepo.findByEmployee(employee);
+        List<Order> orders = orderRepo.findByEmployee(employee);
+        forceLoadOrderListDetails(orders);
+        return orders;
     }
 
     @Override
     public List<Order> findByStatus(OrderStatus status) {
-        return orderRepo.findByStatus(status);
+        List<Order> orders = orderRepo.findByStatus(status);
+        forceLoadOrderListDetails(orders);
+        return orders;
     }
 
     @Override
     public List<Order> findByOrderDateBetween(LocalDateTime start, LocalDateTime end) {
-        return orderRepo.findByOrderDateBetween(start, end);
+        List<Order> orders = orderRepo.findByOrderDateBetween(start, end);
+        forceLoadOrderListDetails(orders);
+        return orders;
     }
 
     @Override
     public List<Order> findByStatusAndCustomer(OrderStatus status, Customer customer) {
-        return orderRepo.findByStatusAndCustomer(status, customer);
+        List<Order> orders = orderRepo.findByStatusAndCustomer(status, customer);
+        forceLoadOrderListDetails(orders);
+        return orders;
     }
 
     @Override
     public List<Order> findByTotalBetween(BigDecimal min, BigDecimal max) {
-        return orderRepo.findByTotalBetween(min, max);
+        List<Order> orders = orderRepo.findByTotalBetween(min, max);
+        forceLoadOrderListDetails(orders);
+        return orders;
     }
 
     /**
@@ -448,25 +463,8 @@ public class OrderServiceImpl implements OrderService {
 
         List<Order> orders = orderRepo.findByCustomer(customer);
 
-        // Buộc tải các chi tiết cần thiết cho list view
-        for (Order order : orders) {
-            if (order.getOrderDetails() != null) {
-                order.getOrderDetails().size();
-
-                // BỔ SUNG: Buộc tải Product cho list view
-                order.getOrderDetails().forEach(detail -> {
-                    if (detail.getProductVariant() != null && detail.getProductVariant().getProduct() != null) {
-                        // Buộc tải TÊN
-                        detail.getProductVariant().getProduct().getName();
-                        // Buộc tải ẢNH (ElementCollection)
-                        detail.getProductVariant().getProduct().getImages().size();
-                    }
-                });
-            }
-            if (order.getAddress() != null) {
-                order.getAddress().getId();
-            }
-        }
+        // SỬA: Sử dụng hàm buộc tải chung
+        forceLoadOrderListDetails(orders);
 
         return orders;
     }

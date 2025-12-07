@@ -26,6 +26,7 @@ public interface OrderRepository extends JpaRepository<Order, String> {
 //    //tim don hang theo customer:
 //    List<Order> findByCustomer(Customer customer);
     //tim don hang theo employee
+List<Order> findByStatusAndOrderDateBetween(OrderStatus status, LocalDateTime startDate, LocalDateTime endDate);
 
     List<Order> findByEmployee(Employee employee);
     //tim don hang theo trang thai: cho giao, dang giao, da hoan thanh, da huy...

@@ -25,14 +25,25 @@ import java.util.List;
                         @NamedAttributeNode("customer"),
                         @NamedAttributeNode("employee"),
                         @NamedAttributeNode("address"),
+                        // Khai báo subgraph cho orderDetails
                         @NamedAttributeNode(value = "orderDetails", subgraph = "order-detail-subgraph"),
                         @NamedAttributeNode("voucherRedemptions")
                 },
                 subgraphs = {
+                        // Subgraph cho OrderDetail: tải ProductVariant
                         @NamedSubgraph(
                                 name = "order-detail-subgraph",
                                 attributeNodes = {
-                                        @NamedAttributeNode("productVariant") // Tải ProductVariant trong OrderDetail
+                                        // Tải ProductVariant trong OrderDetail
+                                        @NamedAttributeNode(value = "productVariant", subgraph = "product-variant-subgraph")
+                                }
+                        ),
+                        // Subgraph MỚI cho ProductVariant: tải Product và ProductVariantImages
+                        @NamedSubgraph(
+                                name = "product-variant-subgraph",
+                                attributeNodes = {
+                                        @NamedAttributeNode("product"), // Tải Product (chứa tên sản phẩm)
+                                        @NamedAttributeNode("imageUrls") // Tải ProductVariantImages (chứa ảnh variant)
                                 }
                         )
                 }
