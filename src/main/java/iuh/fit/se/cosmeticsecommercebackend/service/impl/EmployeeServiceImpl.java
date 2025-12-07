@@ -7,6 +7,8 @@ import iuh.fit.se.cosmeticsecommercebackend.repository.AccountRepository;
 import iuh.fit.se.cosmeticsecommercebackend.repository.EmployeeRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.EmployeeService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,8 +22,9 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     private final EmployeeRepository employeeRepository;
     private final AccountRepository accountRepository;
-    //  thêm private final PasswordEncoder passwordEncoder; ở đây
-    // và mã hóa mật khẩu trong hàm create/update
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     public EmployeeServiceImpl(EmployeeRepository employeeRepository, AccountRepository accountRepository) {
         this.employeeRepository = employeeRepository;
         this.accountRepository = accountRepository;
@@ -45,7 +48,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         }
 
         // Tốt nhất là mã hóa mật khẩu ở đây
-        // account.setPassword(passwordEncoder.encode(account.getPassword()));
+         account.setPassword(passwordEncoder.encode(account.getPassword()));
 
         // Lưu Account trước để lấy ID
         Account savedAccount = accountRepository.save(account);
