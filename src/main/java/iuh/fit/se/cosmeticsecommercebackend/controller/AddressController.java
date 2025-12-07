@@ -47,33 +47,20 @@ public class AddressController {
     // TẠO ĐỊA CHỈ
     @PostMapping
     public ResponseEntity<Address> createAddress(@RequestBody Map<String, Object> body) {
+        Long customerId = ((Number) body.get("customerId")).longValue();
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy customer id: " + customerId));
 
         Address address = new Address();
-
-        // ===== CUSTOMER (nếu có) =====
-        if (body.get("customerId") != null) {
-            Long customerId = ((Number) body.get("customerId")).longValue();
-            Customer customer = customerRepository.findById(customerId)
-                    .orElseThrow(() ->
-                            new EntityNotFoundException("Không tìm thấy customer id: " + customerId)
-                    );
-            address.setCustomer(customer);
-
-            // chỉ customer mới có default
-            address.setDefault(Boolean.TRUE.equals(body.get("default")));
-        } else {
-            // ===== GUEST =====
-            address.setCustomer(null);
-            address.setDefault(false);
-        }
-
-        // ===== Thông tin chung =====
+        address.setId(Address.generateAddressId());
+        address.setCustomer(customer);
         address.setFullName((String) body.get("fullName"));
         address.setPhone((String) body.get("phone"));
         address.setAddress((String) body.get("address"));
         address.setCity((String) body.get("city"));
         address.setState((String) body.get("state"));
         address.setCountry((String) body.get("country"));
+        address.setDefault((boolean) body.get("default"));
 
         Address saved = addressService.create(address);
         return ResponseEntity.ok(saved);
