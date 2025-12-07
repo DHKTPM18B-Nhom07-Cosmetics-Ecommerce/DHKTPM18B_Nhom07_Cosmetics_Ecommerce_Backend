@@ -261,132 +261,146 @@ public class VoucherServiceImpl implements VoucherService {
     @Override
     public Map<String, Object> applyVoucher(String code, List<Map<String, Object>> items) {
 
-        Map<String, Object> res = new HashMap<>();
-
         if (code == null || code.trim().isEmpty()) {
-            res.put("valid", false);
-            res.put("message", "Thiếu mã voucher");
-            res.put("discount", 0);
-            return res;
+            return Map.of(
+                    "valid", false,
+                    "message", "Thiếu mã voucher",
+                    "discount", 0
+            );
         }
 
         Voucher v = voucherRepo.findByCodeIgnoreCase(code.trim()).orElse(null);
-
         if (v == null) {
-            res.put("valid", false);
-            res.put("message", "Voucher không tồn tại");
-            res.put("discount", 0);
-            return res;
+            return Map.of(
+                    "valid", false,
+                    "message", "Voucher không tồn tại",
+                    "discount", 0
+            );
         }
 
-        // 1. auto status
-        VoucherStatus runtimeStatus = autoStatus(v);
-
-        if (v.getStatus() != runtimeStatus && v.getStatus() != VoucherStatus.DISABLED) {
-            v.setStatus(runtimeStatus);
-            voucherRepo.save(v);
+        // ===== CHECK STATUS =====
+        if (autoStatus(v) != VoucherStatus.ACTIVE) {
+            return Map.of(
+                    "valid", false,
+                    "message", "Voucher không khả dụng",
+                    "discount", 0
+            );
         }
 
-        if (runtimeStatus != VoucherStatus.ACTIVE) {
-            res.put("valid", false);
-            res.put("message", "Voucher không khả dụng");
-            res.put("discount", 0);
-            return res;
-        }
-
-        // 2. tổng số lượng sp
-        int totalItems = items.stream()
-                .mapToInt(i -> safeInt(i.getOrDefault("quantity", 0)))
-                .sum();
-
-        if (v.getMinItemCount() != null && totalItems < v.getMinItemCount()) {
-            res.put("valid", false);
-            res.put("message", "Cần mua tối thiểu " + v.getMinItemCount() + " sản phẩm");
-            res.put("discount", 0);
-            return res;
-        }
-
-        // 3. lấy danh sách productId
-        List<Long> productIds = new ArrayList<>();
-
-        for (Map<String, Object> item : items) {
-            Object raw = item.get("productId");
-            if (raw == null) continue; // bỏ qua item lỗi
-            try {
-                productIds.add(Long.valueOf(raw.toString()));
-            } catch (Exception ignored) {}
-        }
-
-        if (productIds.isEmpty()) {
-            res.put("valid", false);
-            res.put("message", "Không có productId hợp lệ trong giỏ");
-            res.put("discount", 0);
-            return res;
-        }
-
-        List<Product> cartProducts = productRepo.findAllById(productIds);
-
-        boolean validScope = switch (v.getScope()) {
-            case GLOBAL -> true;
-            case PRODUCT -> cartProducts.stream().anyMatch(p -> v.getProducts().contains(p));
-            case BRAND -> cartProducts.stream().anyMatch(p -> v.getBrands().contains(p.getBrand()));
-            case CATEGORY -> cartProducts.stream().anyMatch(p -> v.getCategories().contains(p.getCategory()));
-        };
-
-        if (!validScope) {
-            res.put("valid", false);
-            res.put("message", "Không sản phẩm nào trong giỏ thuộc phạm vi áp dụng");
-            res.put("discount", 0);
-            return res;
-        }
-
-        // 4. tính tổng tiền
         BigDecimal total = BigDecimal.ZERO;
+        int totalQty = 0;
+
+        // Chỉ giữ để check scope
+        Set<Long> productIds = new HashSet<>();
+        Set<Long> brandIds = new HashSet<>();
+        Set<Long> categoryIds = new HashSet<>();
 
         for (Map<String, Object> item : items) {
-            Object rawPid = item.get("productId");
-            if (rawPid == null) continue;
 
-            Long pid;
-            try {
-                pid = Long.valueOf(rawPid.toString());
-            } catch (Exception e) {
+            Object priceObj = item.get("price");
+            Object qtyObj = item.get("quantity");
+            Object productIdObj = item.get("productId");
+
+            if (priceObj == null || qtyObj == null) {
                 continue;
             }
 
-            int qty = safeInt(item.getOrDefault("quantity", 0));
+            BigDecimal price = new BigDecimal(priceObj.toString());
+            int qty = Integer.parseInt(qtyObj.toString());
 
-            Product p = productRepo.findById(pid).orElse(null);
-            if (p == null || p.getVariants().isEmpty()) continue;
-
-            BigDecimal price = p.getVariants().get(0).getPrice();
             total = total.add(price.multiply(BigDecimal.valueOf(qty)));
+            totalQty += qty;
+
+            // scope chỉ check nếu có productId
+            if (productIdObj != null) {
+                Long productId = Long.valueOf(productIdObj.toString());
+                productRepo.findById(productId).ifPresent(p -> {
+                    productIds.add(p.getId());
+                    brandIds.add(p.getBrand().getId());
+                    categoryIds.add(p.getCategory().getId());
+                });
+            }
         }
 
+        // ===== CHECK MIN ITEM =====
+        if (v.getMinItemCount() != null && totalQty < v.getMinItemCount()) {
+            return Map.of(
+                    "valid", false,
+                    "message", "Cần mua tối thiểu " + v.getMinItemCount() + " sản phẩm",
+                    "discount", 0
+            );
+        }
+
+        // ===== CHECK MIN ORDER =====
         if (total.compareTo(v.getMinOrderAmount()) < 0) {
-            res.put("valid", false);
-            res.put("message", "Chưa đạt đơn tối thiểu " + v.getMinOrderAmount());
-            res.put("discount", 0);
-            return res;
+            return Map.of(
+                    "valid", false,
+                    "message", "Chưa đạt đơn tối thiểu " + v.getMinOrderAmount(),
+                    "discount", 0
+            );
         }
 
-        // 5. tính discount
-        BigDecimal discount = switch (v.getType()) {
-            case PERCENT -> total.multiply(v.getValue()).divide(BigDecimal.valueOf(100));
-            case AMOUNT -> v.getValue();
-            case SHIPPING_FREE -> BigDecimal.valueOf(30000);
+        // ===== CHECK SCOPE =====
+        boolean scopeValid = switch (v.getScope()) {
+            case GLOBAL -> true;
+            case PRODUCT -> productIds.stream().anyMatch(id ->
+                    v.getProducts().stream().anyMatch(p -> p.getId().equals(id))
+            );
+            case BRAND -> brandIds.stream().anyMatch(id ->
+                    v.getBrands().stream().anyMatch(b -> b.getId().equals(id))
+            );
+            case CATEGORY -> categoryIds.stream().anyMatch(id ->
+                    v.getCategories().stream().anyMatch(c -> c.getId().equals(id))
+            );
         };
 
-        if (v.getMaxDiscount() != null)
+        if (!scopeValid) {
+            return Map.of(
+                    "valid", false,
+                    "message", "Voucher không áp dụng cho sản phẩm trong giỏ",
+                    "discount", 0
+            );
+        }
+
+        // ===== CALC DISCOUNT =====
+        BigDecimal discount;
+
+        switch (v.getType()) {
+            case PERCENT:
+                discount = total.multiply(v.getValue())
+                        .divide(BigDecimal.valueOf(100));
+                break;
+
+            case AMOUNT:
+                discount = v.getValue();
+                break;
+
+            case SHIPPING_FREE:
+                BigDecimal shipDiscount = BigDecimal.valueOf(50000); // fallback
+                if (v.getMaxDiscount() != null) {
+                    shipDiscount = shipDiscount.min(v.getMaxDiscount());
+                }
+                discount = shipDiscount;
+                break;
+
+
+            default:
+                discount = BigDecimal.ZERO;
+        }
+
+
+        if (v.getMaxDiscount() != null) {
             discount = discount.min(v.getMaxDiscount());
+        }
 
-        res.put("valid", true);
-        res.put("message", "Áp dụng thành công");
-        res.put("discount", discount);
-
-        return res;
+        return Map.of(
+                "valid", true,
+                "message", "Áp dụng thành công",
+                "discount", discount,
+                "freeShipping", v.getType() == VoucherType.SHIPPING_FREE,
+                "orderTotal", total
+        );
     }
-
 
     /* ============================================================
                            HELPERS
@@ -414,4 +428,122 @@ public class VoucherServiceImpl implements VoucherService {
             return null;
         }
     }
+
+
+    @Override
+    public Map<String, Object> applyMultipleVouchers(
+            List<String> codes,
+            List<Map<String, Object>> items
+    ) {
+        if (codes == null || codes.isEmpty()) {
+            return Map.of(
+                    "valid", false,
+                    "message", "Chưa chọn voucher",
+                    "discount", 0
+            );
+        }
+
+        BigDecimal total = BigDecimal.ZERO;
+        int totalQty = 0;
+
+        Set<Long> productIds = new HashSet<>();
+        Set<Long> brandIds = new HashSet<>();
+        Set<Long> categoryIds = new HashSet<>();
+
+        // TÍNH TOTAL + SCOPE DATA
+        for (Map<String, Object> item : items) {
+            BigDecimal price = new BigDecimal(item.get("price").toString());
+            int qty = Integer.parseInt(item.get("quantity").toString());
+
+            total = total.add(price.multiply(BigDecimal.valueOf(qty)));
+            totalQty += qty;
+
+            if (item.get("productId") != null) {
+                productRepo.findById(
+                        Long.valueOf(item.get("productId").toString())
+                ).ifPresent(p -> {
+                    productIds.add(p.getId());
+                    brandIds.add(p.getBrand().getId());
+                    categoryIds.add(p.getCategory().getId());
+                });
+            }
+        }
+
+        BigDecimal discountTotal = BigDecimal.ZERO;
+        boolean freeShipping = false;
+
+        boolean usedDiscountVoucher = false;
+        boolean usedShippingVoucher = false;
+
+        List<String> appliedCodes = new ArrayList<>();
+
+        for (String code : codes) {
+
+            Voucher v = voucherRepo.findByCodeIgnoreCase(code).orElse(null);
+            if (v == null) continue;
+
+            if (autoStatus(v) != VoucherStatus.ACTIVE) continue;
+
+            // Không stackable mà chọn nhiều → skip
+            if (!v.isStackable() && codes.size() > 1) continue;
+
+            // CHECK MIN ITEM
+            if (v.getMinItemCount() != null && totalQty < v.getMinItemCount())
+                continue;
+
+            // CHECK MIN ORDER
+            if (total.compareTo(v.getMinOrderAmount()) < 0)
+                continue;
+
+            // CHECK SCOPE
+            boolean scopeValid = switch (v.getScope()) {
+                case GLOBAL -> true;
+                case PRODUCT -> productIds.stream().anyMatch(id ->
+                        v.getProducts().stream().anyMatch(p -> p.getId().equals(id))
+                );
+                case BRAND -> brandIds.stream().anyMatch(id ->
+                        v.getBrands().stream().anyMatch(b -> b.getId().equals(id))
+                );
+                case CATEGORY -> categoryIds.stream().anyMatch(id ->
+                        v.getCategories().stream().anyMatch(c -> c.getId().equals(id))
+                );
+            };
+
+            if (!scopeValid) continue;
+
+            // ================= APPLY =================
+
+            if (v.getType() == VoucherType.SHIPPING_FREE && !usedShippingVoucher) {
+                freeShipping = true;
+                usedShippingVoucher = true;
+                appliedCodes.add(v.getCode());
+                continue;
+            }
+
+            if (!usedDiscountVoucher) {
+                BigDecimal d;
+                if (v.getType() == VoucherType.PERCENT) {
+                    d = total.multiply(v.getValue()).divide(BigDecimal.valueOf(100));
+                } else {
+                    d = v.getValue();
+                }
+
+                if (v.getMaxDiscount() != null)
+                    d = d.min(v.getMaxDiscount());
+
+                discountTotal = discountTotal.add(d);
+                usedDiscountVoucher = true;
+                appliedCodes.add(v.getCode());
+            }
+        }
+
+        return Map.of(
+                "valid", !appliedCodes.isEmpty(),
+                "discount", discountTotal,
+                "freeShipping", freeShipping,
+                "appliedVouchers", appliedCodes,
+                "orderTotal", total
+        );
+    }
+
 }

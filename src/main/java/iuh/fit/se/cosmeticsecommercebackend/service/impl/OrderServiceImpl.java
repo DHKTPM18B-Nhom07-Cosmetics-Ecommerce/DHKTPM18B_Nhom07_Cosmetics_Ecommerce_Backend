@@ -3,22 +3,17 @@ package iuh.fit.se.cosmeticsecommercebackend.service.impl;
 import iuh.fit.se.cosmeticsecommercebackend.exception.ResourceNotFoundException;
 import iuh.fit.se.cosmeticsecommercebackend.model.*;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.OrderStatus;
-import iuh.fit.se.cosmeticsecommercebackend.payload.CreateOrderRequest;
-import iuh.fit.se.cosmeticsecommercebackend.payload.CreateOrderResponse;
-import iuh.fit.se.cosmeticsecommercebackend.payload.OrderDetailRequest;
-import iuh.fit.se.cosmeticsecommercebackend.payload.OrderDetailResponse;
+import iuh.fit.se.cosmeticsecommercebackend.payload.*;
+import iuh.fit.se.cosmeticsecommercebackend.repository.AddressRepository;
 import iuh.fit.se.cosmeticsecommercebackend.repository.OrderRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @Transactional
@@ -29,129 +24,74 @@ public class OrderServiceImpl implements OrderService {
     private final EmployeeService employeeService;
     private final AddressService addressService;
     private final ProductVariantService productVariantService;
+    private final AddressRepository addressRepository;
+    private final CartItemService cartItemService;
 
-    @Autowired
-    private iuh.fit.se.cosmeticsecommercebackend.service.RiskService riskService;
-
-    @Autowired
-    private iuh.fit.se.cosmeticsecommercebackend.service.CartItemService cartItemService;
-
-    @Autowired
-    private iuh.fit.se.cosmeticsecommercebackend.repository.AddressRepository addressRepository;
-
-    public OrderServiceImpl(OrderRepository orderRepo,
-                            CustomerService customerService,
-                            EmployeeService employeeService,
-                            AddressService addressService,
-                            ProductVariantService productVariantService) {
+    public OrderServiceImpl(
+            OrderRepository orderRepo,
+            CustomerService customerService,
+            EmployeeService employeeService,
+            AddressService addressService,
+            ProductVariantService productVariantService,
+            AddressRepository addressRepository,
+            CartItemService cartItemService
+    ) {
         this.orderRepo = orderRepo;
         this.customerService = customerService;
         this.employeeService = employeeService;
         this.addressService = addressService;
         this.productVariantService = productVariantService;
+        this.addressRepository = addressRepository;
+        this.cartItemService = cartItemService;
     }
 
-    /**
-     * Logic phát sinh ID đơn hàng theo format OD-yyyymmdd[số thứ tự 2 chữ số].
-     * Hàm này phải được gọi trong @Transactional để đảm bảo tính nhất quán.
-     */
+    /* ===================== ORDER ID ===================== */
+
     private String generateNewOrderId() {
-        // Định dạng ngày: yyyyMMdd
-        String today = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String prefix = "OD-" + today; // Ví dụ: OD-20251205
+        String today = LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String prefix = "OD-" + today;
 
-        // Sử dụng phương thức repository mới để tìm ID lớn nhất trong ngày
-        // Việc này cần chạy trong cùng transaction để đảm bảo isolation.
-        Optional<String> lastIdOptional = orderRepo.findLastOrderIdByDatePrefix(prefix);
+        Optional<String> lastId = orderRepo.findLastOrderIdByDatePrefix(prefix);
+        int seq = 1;
 
-        int sequence = 1; // Mặc định là 01 nếu chưa có đơn hàng nào
-
-        if (lastIdOptional.isPresent()) {
-            String lastId = lastIdOptional.get();
-            try {
-                // Lấy 2 ký tự cuối (số thứ tự)
-                String sequenceStr = lastId.substring(lastId.length() - 2);
-
-                // Chuyển sang số nguyên và tăng lên 1
-                sequence = Integer.parseInt(sequenceStr) + 1;
-            } catch (NumberFormatException e) {
-                // Xử lý lỗi nếu format ID bị sai (nên log lỗi này)
-                System.err.println("Lỗi parse ID đơn hàng: " + lastId);
-                // Vẫn giữ sequence = 1 và tiếp tục.
-                sequence = 1;
-            }
+        if (lastId.isPresent()) {
+            String num = lastId.get().substring(lastId.get().length() - 2);
+            seq = Integer.parseInt(num) + 1;
         }
 
-        // Định dạng lại số thứ tự thành 2 chữ số (ví dụ: 1 -> 01, 15 -> 15)
-        String newSequence = String.format("%02d", sequence);
-
-        return prefix + newSequence;
+        return prefix + String.format("%02d", seq);
     }
 
-    // ============================= TẠO ĐƠN HÀNG =============================
+    /* ===================== CREATE ORDER ===================== */
 
     @Override
+    @Deprecated
     public Order createOrder(Order order) {
-        // 1️⃣ Kiểm tra khách hàng
-        if (order.getCustomer() == null || order.getCustomer().getId() == null) {
-            throw new IllegalArgumentException("Đơn hàng phải có khách hàng hợp lệ.");
-        }
-
-        Customer customer = customerService.findById(order.getCustomer().getId());
-        order.setCustomer(customer);
-
-        // 2️⃣ Gán thông tin mặc định
-        order.setOrderDate(LocalDateTime.now());
-        order.setStatus(OrderStatus.PENDING);
-
-        // 🚨 KHẮC PHỤC: GÁN ID TÙY CHỈNH
-        order.setId(generateNewOrderId());
-
-        // 3️⃣ Gắn lại quan hệ 2 chiều và tính tổng tiền
-        if (order.getOrderDetails() != null && !order.getOrderDetails().isEmpty()) {
-            for (OrderDetail detail : order.getOrderDetails()) {
-                detail.setOrder(order);
-                // Đảm bảo totalPrice trong OrderDetail được tính đúng
-                if (detail.getUnitPrice() != null && detail.getQuantity() != null && detail.getQuantity() > 0) {
-                    BigDecimal price = detail.getUnitPrice().multiply(BigDecimal.valueOf(detail.getQuantity()));
-                    // Trừ đi discountAmount (nếu có)
-                    if (detail.getDiscountAmount() != null) {
-                        price = price.subtract(detail.getDiscountAmount());
-                    }
-                    detail.setTotalPrice(price);
-                } else {
-                    detail.setTotalPrice(BigDecimal.ZERO);
-                }
-            }
-        }
-
-        // Gọi hàm tính tổng tiền cuối cùng (bao gồm cả phí vận chuyển, nếu có)
-        order.setTotal(calculateTotal(order));
-
-        // 4️⃣ Lưu đơn hàng (cascade sẽ tự lưu OrderDetail)
-        return orderRepo.save(order);
+        throw new UnsupportedOperationException(
+                "Không sử dụng createOrder(Order). " +
+                        "Hãy dùng createOrderFromRequest(CreateOrderRequest)"
+        );
     }
 
-    /**
-     * Tạo đơn hàng từ DTO request (dành cho Frontend gửi JSON payload)
-     * @param request CreateOrderRequest chứa thông tin đơn hàng từ FE
-     * @return CreateOrderResponse chứa thông tin đơn hàng đã tạo
-     */
     @Override
-    @Transactional
     public CreateOrderResponse createOrderFromRequest(CreateOrderRequest request) {
+
+        /* ===== CUSTOMER (CÓ THỂ NULL) ===== */
         Customer customer = null;
-        Address address = null;
-        if (request.getCustomerId() != null && request.getCustomerId() > 0) {
+        if (request.getCustomerId() != null) {
             customer = customerService.findById(request.getCustomerId());
             if (customer == null) {
-                throw new ResourceNotFoundException("Không tìm thấy khách hàng với ID: " + request.getCustomerId());
+                throw new ResourceNotFoundException("Không tìm thấy khách hàng");
             }
-
         }
-        if (request.getCustomerId() == null || request.getCustomerId() == 0) {
+
+        /* ===== ADDRESS ===== */
+        Address address;
+
+        if (customer == null) {
+            // GUEST
             address = new Address();
-            address.setId(Address.generateAddressId());
             address.setFullName(request.getShippingFullName());
             address.setPhone(request.getShippingPhone());
             address.setAddress(request.getShippingAddress());
@@ -161,505 +101,231 @@ public class OrderServiceImpl implements OrderService {
             address.setCustomer(null);
             address.setDefault(false);
             address = addressRepository.save(address);
-        } else if (request.getAddressId() != null) {
-            address = addressService.findById(request.getAddressId());
-            if (address == null) {
-                throw new ResourceNotFoundException("Không tìm thấy địa chỉ với ID: " + request.getAddressId());
-            }
         } else {
-            address = new Address();
-            // Tìm địa chỉ mặc định của khách
-            address = customer.getAddresses().stream()
-                    .filter(Address::isDefault)
-                    .findFirst()
-                    .orElse(null);
-            if (address == null) {
-                throw new ResourceNotFoundException("Khách hàng chưa có địa chỉ mặc định. Vui lòng cập nhật địa chỉ mặc định trước khi đặt hàng.");
+            // CUSTOMER
+            if (request.getAddressId() != null) {
+                address = addressService.findById(request.getAddressId());
+                if (address == null) {
+                    throw new ResourceNotFoundException("Không tìm thấy địa chỉ");
+                }
+            } else {
+                address = addressService.getDefaultAddressByCustomerId(customer.getId());
+                if (address == null) {
+                    throw new IllegalStateException("Khách hàng chưa có địa chỉ mặc định");
+                }
             }
         }
-        // Nếu không đăng nhập thì bỏ qua address (address = null)
 
-        // 3️⃣ Validation: Kiểm tra orderDetails không rỗng
+        /* ===== VALIDATE ITEMS ===== */
         if (request.getOrderDetails() == null || request.getOrderDetails().isEmpty()) {
             throw new IllegalArgumentException("Đơn hàng phải có ít nhất 1 sản phẩm");
         }
 
-        // 4️⃣ Tạo Order entity
+        /* ===== CREATE ORDER ===== */
         Order order = new Order();
         order.setId(generateNewOrderId());
-        order.setCustomer(customer); // null nếu không đăng nhập hoặc customerId = 0
-        order.setAddress(address);   // luôn lưu address
+        order.setCustomer(customer);
+        order.setAddress(address);
         order.setOrderDate(LocalDateTime.now());
         order.setStatus(OrderStatus.PENDING);
-        
-        // Xử lý shipping fee và discount
-        BigDecimal shippingFee = request.getShippingFee() != null ? request.getShippingFee() : new BigDecimal("30000.00");
+
+        BigDecimal shippingFee =
+                request.getShippingFee() != null
+                        ? request.getShippingFee()
+                        : new BigDecimal("30000");
         order.setShippingFee(shippingFee);
 
-        // 5️⃣ Xử lý OrderDetails với validation
-        List<OrderDetail> orderDetails = new ArrayList<>();
-        BigDecimal calculatedTotal = BigDecimal.ZERO;
+        List<OrderDetail> details = new ArrayList<>();
+        BigDecimal itemsTotal = BigDecimal.ZERO;
 
-        for (OrderDetailRequest detailRequest : request.getOrderDetails()) {
-            // Validation: Kiểm tra productVariantId
-            if (detailRequest.getProductVariantId() == null) {
-                throw new IllegalArgumentException("productVariantId không được để trống");
+        for (OrderDetailRequest d : request.getOrderDetails()) {
+
+            ProductVariant variant = productVariantService.getById(d.getProductVariantId());
+            if (variant == null) {
+                throw new ResourceNotFoundException("Không tìm thấy sản phẩm");
             }
-            
-            ProductVariant productVariant = productVariantService.getById(detailRequest.getProductVariantId());
-            if (productVariant == null) {
-                throw new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + detailRequest.getProductVariantId());
+            if (variant.getQuantity() < d.getQuantity()) {
+                throw new IllegalStateException("Không đủ tồn kho");
             }
 
-            // Validation: Kiểm tra số lượng
-            if (detailRequest.getQuantity() == null || detailRequest.getQuantity() <= 0) {
-                throw new IllegalArgumentException("Số lượng phải lớn hơn 0");
-            }
+            OrderDetail od = new OrderDetail();
+            od.setOrder(order);
+            od.setProductVariant(variant);
+            od.setQuantity(d.getQuantity());
+            od.setUnitPrice(variant.getPrice());
 
-            // Validation: Kiểm tra tồn kho
-            if (productVariant.getQuantity() < detailRequest.getQuantity()) {
-                throw new IllegalArgumentException(
-                    String.format("Sản phẩm '%s' không đủ số lượng. Còn lại: %d, yêu cầu: %d",
-                        productVariant.getVariantName(),
-                        productVariant.getQuantity(),
-                        detailRequest.getQuantity())
-                );
-            }
+            BigDecimal subtotal =
+                    variant.getPrice().multiply(BigDecimal.valueOf(d.getQuantity()));
+            od.setTotalPrice(subtotal);
+            od.setDiscountAmount(BigDecimal.ZERO);
 
-            // Tạo OrderDetail
-            OrderDetail orderDetail = new OrderDetail();
-            orderDetail.setOrder(order);
-            orderDetail.setProductVariant(productVariant);
-            orderDetail.setQuantity(detailRequest.getQuantity());
-            
-            // Sử dụng giá từ ProductVariant thay vì tin tưởng hoàn toàn FE
-            BigDecimal unitPrice = productVariant.getPrice();
-            orderDetail.setUnitPrice(unitPrice);
-            
-            // Tính totalPrice cho OrderDetail
-            BigDecimal totalPrice = unitPrice.multiply(BigDecimal.valueOf(detailRequest.getQuantity()));
-            orderDetail.setTotalPrice(totalPrice);
-            orderDetail.setDiscountAmount(BigDecimal.ZERO);
+            details.add(od);
+            itemsTotal = itemsTotal.add(subtotal);
 
-            orderDetails.add(orderDetail);
-            calculatedTotal = calculatedTotal.add(totalPrice);
-
-            // Giảm tồn kho
-            productVariant.setQuantity(productVariant.getQuantity() - detailRequest.getQuantity());
+            // trừ tồn kho
+            variant.setQuantity(variant.getQuantity() - d.getQuantity());
         }
 
-        // 6️⃣ Gán OrderDetails vào Order
-        order.setOrderDetails(orderDetails);
+        order.setOrderDetails(details);
 
-        // 7️⃣ Tính tổng tiền cuối cùng (bao gồm shipping fee, trừ discount nếu có)
-        BigDecimal discount = request.getDiscount() != null ? request.getDiscount() : BigDecimal.ZERO;
-        BigDecimal finalTotal = calculatedTotal.add(shippingFee).subtract(discount);
-        order.setTotal(finalTotal);
+        BigDecimal discount =
+                request.getDiscount() != null ? request.getDiscount() : BigDecimal.ZERO;
 
-        // 8️⃣ Lưu đơn hàng (cascade sẽ tự lưu OrderDetail)
-        Order savedOrder = orderRepo.save(order);
+        order.setTotal(itemsTotal.add(shippingFee).subtract(discount));
 
-        // 9️⃣ Tạo response DTO
-        CreateOrderResponse response = new CreateOrderResponse();
-        response.setId(savedOrder.getId());
-        response.setCustomerId(savedOrder.getCustomer() != null ? savedOrder.getCustomer().getId() : null);
-        response.setAddressId(savedOrder.getAddress() != null ? savedOrder.getAddress().getId() : null);
-        response.setOrderDate(savedOrder.getOrderDate());
-        response.setStatus(savedOrder.getStatus().name());
-        response.setTotalAmount(savedOrder.getTotal());
-        response.setShippingFee(savedOrder.getShippingFee());
-        response.setDiscount(discount);
+        Order saved = orderRepo.save(order);
 
-        // Map OrderDetails sang OrderDetailResponse
-        List<OrderDetailResponse> detailResponses = new ArrayList<>();
-        for (OrderDetail detail : savedOrder.getOrderDetails()) {
-            OrderDetailResponse detailResponse = new OrderDetailResponse();
-            detailResponse.setId(detail.getId());
-            detailResponse.setProductVariantId(detail.getProductVariant().getId());
-            detailResponse.setQuantity(detail.getQuantity());
-            detailResponse.setPrice(detail.getUnitPrice());
-            detailResponse.setSubtotal(detail.getTotalPrice());
-            detailResponses.add(detailResponse);
-        }
-        response.setOrderDetails(detailResponses);
-
-        // Xóa các CartItem tương ứng sau khi tạo đơn hàng thành công
-        if (request.getCartItemIds() != null && !request.getCartItemIds().isEmpty()) {
-            for (Long cartItemId : request.getCartItemIds()) {
-                cartItemService.deleteCartItemById(cartItemId);
-            }
+        // xoá cart item nếu có
+        if (request.getCartItemIds() != null) {
+            request.getCartItemIds()
+                    .forEach(cartItemService::deleteCartItemById);
         }
 
-        return response;
+        /* ===== RESPONSE ===== */
+        CreateOrderResponse res = new CreateOrderResponse();
+        res.setId(saved.getId());
+        res.setCustomerId(customer != null ? customer.getId() : null);
+        res.setAddressId(saved.getAddress().getId());
+        res.setOrderDate(saved.getOrderDate());
+        res.setStatus(saved.getStatus().name());
+        res.setTotalAmount(saved.getTotal());
+        res.setShippingFee(saved.getShippingFee());
+        res.setDiscount(discount);
+
+        List<OrderDetailResponse> resDetails = new ArrayList<>();
+        for (OrderDetail od : saved.getOrderDetails()) {
+            OrderDetailResponse r = new OrderDetailResponse();
+            r.setId(od.getId());
+            r.setProductVariantId(od.getProductVariant().getId());
+            r.setQuantity(od.getQuantity());
+            r.setPrice(od.getUnitPrice());
+            r.setSubtotal(od.getTotalPrice());
+            resDetails.add(r);
+        }
+        res.setOrderDetails(resDetails);
+
+        return res;
     }
 
-    // ============================= CRUD CƠ BẢN =============================
+    /* ===================== READ ===================== */
 
     @Override
-    @Transactional(readOnly = true)
     public List<Order> getAll() {
-        List<Order> orders = orderRepo.findAll();
-
-        // Buộc tải các mối quan hệ cần thiết cho trang quản lý
-        for (Order order : orders) {
-            // 1. Buộc tải Customer và Account (để lấy tên Khách hàng)
-            if (order.getCustomer() != null && order.getCustomer().getAccount() != null) {
-                order.getCustomer().getAccount().getFullName();
-            }
-            // 2. Buộc tải OrderDetails (tùy chọn, để xem nhanh số lượng sản phẩm nếu cần)
-            if (order.getOrderDetails() != null) {
-                order.getOrderDetails().size();
-            }
-            // 3. Buộc tải Employee (nếu có)
-            if (order.getEmployee() != null) {
-                order.getEmployee().getId();
-            }
-        }
-        return orders;
+        return orderRepo.findAll();
     }
 
-    /**
-     * Phương thức dùng nội bộ hoặc Admin: Lấy đơn hàng theo ID và buộc tải Product.
-     */
     @Override
-    @Transactional(readOnly = true)
     public Order findById(String id) {
-        Order order = orderRepo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng ID: " + id));
-        if (order.getOrderDetails() != null) {
-            order.getOrderDetails().size();
-            order.getOrderDetails().forEach(detail -> {
-                if (detail.getProductVariant() != null) {
-                    detail.getProductVariant().getId();
-
-                    // BỔ SUNG: Buộc tải Product (nơi chứa tên sản phẩm và ảnh)
-                    if (detail.getProductVariant().getProduct() != null) {
-                        // Truy cập getName() để buộc tải Product Entity
-                        detail.getProductVariant().getProduct().getName();
-                        // Buộc tải danh sách ảnh (images)
-                        detail.getProductVariant().getProduct().getImages().size();
-                    }
-                }
-            });
-        }
-
-        // 2. Buộc tải Address
-        if (order.getAddress() != null) {
-            order.getAddress().generateAddressId();
-            order.getAddress().getFullName();
-            order.getAddress().getPhone();
-            order.getAddress().getAddress();
-            order.getAddress().getCity();
-            order.getAddress().getState();
-            order.getAddress().getCountry();
-        }
-
-        // 3. Buộc tải Customer
-        if (order.getCustomer() != null) {
-            order.getCustomer().getId();
-        }
-
-        return order;
+        return orderRepo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng"));
     }
 
-    /**
-     * TRIỂN KHAI PHƯƠNG THỨC BỊ THIẾU 1: Lấy chi tiết đơn hàng cho Khách hàng, có kiểm tra quyền sở hữu.
-     */
     @Override
-    @Transactional(readOnly = true)
-    public Order getCustomerOrderById(String orderId, String username) {
-        // 1. Tìm Order bằng findById (đã có logic buộc tải)
-        Order order = findById(orderId);
-
-        // 2. Lấy Customer Entity từ username (từ JWT)
+    public List<Order> getMyOrders(String username) {
         Customer customer = customerService.findByAccountUsername(username);
-
-        if (customer == null || !order.getCustomer().getId().equals(customer.getId())) {
-            // Ném lỗi 404 để không tiết lộ sự tồn tại của đơn hàng khác
-            throw new ResourceNotFoundException("Không tìm thấy đơn hàng ID: " + orderId);
+        if (customer == null) {
+            throw new ResourceNotFoundException("Không tìm thấy khách hàng");
         }
-
-        return order; // Trả về đơn hàng sau khi xác minh quyền sở hữu
-    }
-
-
-//    @Override
-//    public Order updateOrder(String id, Order orderDetails) {
-//        Order existing = findById(id);
-//
-//        if (existing.getStatus() != OrderStatus.PENDING) {
-//            throw new IllegalStateException("Chỉ có thể chỉnh sửa đơn hàng khi trạng thái là PENDING. Trạng thái hiện tại: "
-//                    + existing.getStatus());
-//        }
-//
-//        // Cần cập nhật lại chi tiết đơn hàng (OrderDetails), tổng tiền và có thể là Address.
-//        // Chỉ đơn giản cập nhật Total là không đủ.
-//        throw new UnsupportedOperationException("Cập nhật đơn hàng (ngoài Total) cần logic phức tạp (cập nhật OrderDetails, Address, v.v.).");
-//
-//        // return orderRepo.save(existing);
-//    }
-
-    // ============================= TRUY VẤN =============================
-    // (Các phương thức truy vấn được giữ nguyên vì chúng gọi trực tiếp từ Repository)
-
-    @Override
-    public List<Order> findByCustomer(Customer customer) {
         return orderRepo.findByCustomer(customer);
     }
 
     @Override
-    public List<Order> findByEmployee(Employee employee) {
-        return orderRepo.findByEmployee(employee);
+    public Order getCustomerOrderById(String orderId, String username) {
+        Order order = findById(orderId);
+        Customer customer = customerService.findByAccountUsername(username);
+
+        if (customer == null
+                || order.getCustomer() == null
+                || !order.getCustomer().getId().equals(customer.getId())) {
+            throw new ResourceNotFoundException("Không tìm thấy đơn hàng");
+        }
+        return order;
     }
 
-    @Override
-    public List<Order> findByStatus(OrderStatus status) {
-        return orderRepo.findByStatus(status);
-    }
+    /* ===================== SEARCH ===================== */
 
-    @Override
-    public List<Order> findByOrderDateBetween(LocalDateTime start, LocalDateTime end) {
-        return orderRepo.findByOrderDateBetween(start, end);
+    @Override public List<Order> findByCustomer(Customer c) { return orderRepo.findByCustomer(c); }
+    @Override public List<Order> findByEmployee(Employee e) { return orderRepo.findByEmployee(e); }
+    @Override public List<Order> findByStatus(OrderStatus s) { return orderRepo.findByStatus(s); }
+    @Override public List<Order> findByOrderDateBetween(LocalDateTime s, LocalDateTime e) {
+        return orderRepo.findByOrderDateBetween(s, e);
     }
-
-    @Override
-    public List<Order> findByStatusAndCustomer(OrderStatus status, Customer customer) {
-        return orderRepo.findByStatusAndCustomer(status, customer);
+    @Override public List<Order> findByStatusAndCustomer(OrderStatus s, Customer c) {
+        return orderRepo.findByStatusAndCustomer(s, c);
     }
-
-    @Override
-    public List<Order> findByTotalBetween(BigDecimal min, BigDecimal max) {
+    @Override public List<Order> findByTotalBetween(BigDecimal min, BigDecimal max) {
         return orderRepo.findByTotalBetween(min, max);
     }
 
-    /**
-     * TRIỂN KHAI PHƯƠNG THỨC BỊ THIẾU 2: Lấy danh sách đơn hàng cá nhân, có buộc tải Product.
-     */
+    /* ===================== STATUS ===================== */
+
     @Override
-    @Transactional(readOnly = true)
-    public List<Order> getMyOrders(String username) {
+    public Order cancelByCustomer(String id, String reason, Customer customer) {
+        Order o = findById(id);
 
-        // Giả định: customerService.findByAccountUsername(username) hoạt động
-        Customer customer = customerService.findByAccountUsername(username);
-
-        if (customer == null) {
-            throw new ResourceNotFoundException("Không tìm thấy Khách hàng với Username: " + username);
+        if (o.getCustomer() == null || !o.getCustomer().getId().equals(customer.getId())) {
+            throw new IllegalArgumentException("Không có quyền huỷ đơn");
         }
 
-        List<Order> orders = orderRepo.findByCustomer(customer);
-
-        // Buộc tải các chi tiết cần thiết cho list view
-        for (Order order : orders) {
-            if (order.getOrderDetails() != null) {
-                order.getOrderDetails().size();
-
-                // BỔ SUNG: Buộc tải Product cho list view
-                order.getOrderDetails().forEach(detail -> {
-                    if (detail.getProductVariant() != null && detail.getProductVariant().getProduct() != null) {
-                        // Buộc tải TÊN
-                        detail.getProductVariant().getProduct().getName();
-                        // Buộc tải ẢNH (ElementCollection)
-                        detail.getProductVariant().getProduct().getImages().size();
-                    }
-                });
-            }
-            if (order.getAddress() != null) {
-                order.getAddress().getId();
-            }
+        if (o.getStatus() != OrderStatus.PENDING) {
+            throw new IllegalStateException("Không thể huỷ đơn ở trạng thái hiện tại");
         }
 
-        return orders;
+        o.setStatus(OrderStatus.CANCELLED);
+        o.setCancelReason(reason);
+        o.setCanceledAt(LocalDateTime.now());
+        return orderRepo.save(o);
     }
 
-    // ============================= NGHIỆP VỤ TRẠNG THÁI =============================
-
-    // 4. Tính tổng tiền đơn hàng dựa trên chi tiết đơn hàng
-    public BigDecimal calculateTotal(Order order) {
-        BigDecimal total = BigDecimal.ZERO;
-
-        // 1. Tính tổng từ OrderDetails
-        if (order.getOrderDetails() != null) {
-            for (OrderDetail detail : order.getOrderDetails()) {
-                if (detail.getTotalPrice() != null) {
-                    total = total.add(detail.getTotalPrice());
-                }
-            }
-        }
-
-        // 2. Cộng phí vận chuyển (Shipping Fee)
-        if (order.getShippingFee() != null) {
-            total = total.add(order.getShippingFee());
-        }
-
-        // Lưu ý: Cần thêm logic xử lý giảm giá toàn đơn từ VoucherRedemption ở đây.
-
-        return total;
-    }
-
-    //calculateTotal
     @Override
-    public BigDecimal calculateTotal(String orderId) {
-        Order order = findById(orderId);
-        return calculateTotal(order);
+    public Order cancelByEmployee(String id, String reason, Employee employee) {
+        Order o = findById(id);
+        o.setStatus(OrderStatus.CANCELLED);
+        o.setEmployee(employee);
+        o.setCancelReason(reason);
+        o.setCanceledAt(LocalDateTime.now());
+        return orderRepo.save(o);
     }
 
-    // Khách hàng hủy đơn hàng
     @Override
-    public Order cancelByCustomer(String orderId, String cancelReason, Customer customer) {
-        Order order = findById(orderId);
-
-        // Kiểm tra quyền sở hữu
-        if (!order.getCustomer().getId().equals(customer.getId())) {
-            throw new IllegalArgumentException("Khách hàng không có quyền hủy đơn hàng này.");
-        }
-
-        // Kiểm tra trạng thái cho phép hủy
-        if (order.getStatus() != OrderStatus.PENDING) {
-            throw new IllegalStateException("Khách hàng chỉ có thể hủy đơn hàng khi trạng thái là PENDING. Trạng thái hiện tại: "
-                    + order.getStatus());
-        }
-
-        // Thực hiện hủy
-        order.setStatus(OrderStatus.CANCELLED);
-        order.setCancelReason(cancelReason);
-        order.setCanceledAt(LocalDateTime.now());
-
-
-        Order savedOrder = orderRepo.save(order);
-        try {
-            if (customer.getAccount() != null) {
-                // Hàm này chỉ tính toán trong RAM và gửi mail, KHÔNG ghi xuống DB
-                riskService.checkAndAlertOrderSpam(
-                        customer.getAccount().getId(),
-                        customer.getAccount().getUsername()
-                );
-            }
-        } catch (Exception e) {
-
-            System.err.println("Lỗi check risk (bỏ qua): " + e.getMessage());
-        }
-        // ==================================================================
-
-        return savedOrder;
+    public Order requestReturn(String id, String reason, Employee e) {
+        Order o = findById(id);
+        o.setStatus(OrderStatus.RETURNED);
+        o.setEmployee(e);
+        o.setCancelReason(reason);
+        return orderRepo.save(o);
     }
 
-
-    // Nhân viên hủy đơn hàng
     @Override
-    public Order cancelByEmployee(String id, String cancelReason, Employee employee) {
-        if (employee == null || employee.getId() == null) {
-            throw new IllegalArgumentException("Nhân viên xác nhận hủy đơn hàng không hợp lệ.");
-        }
-        Employee emp = employeeService.findEmployeeById(employee.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nhân viên ID: " + employee.getId()));
-
-        Order order = findById(id);
-
-        if (order.getStatus() == OrderStatus.SHIPPING ||
-                order.getStatus() == OrderStatus.DELIVERED ||
-                order.getStatus() == OrderStatus.REFUNDED) {
-            throw new IllegalStateException("Không thể hủy đơn hàng đang giao, đã giao hoặc đã hoàn tiền.");
-        }
-
-        order.setStatus(OrderStatus.CANCELLED);
-        order.setCancelReason(cancelReason);
-        order.setCanceledAt(LocalDateTime.now());
-        order.setEmployee(emp); // Gán nhân viên hủy
-
-        return orderRepo.save(order);
+    public Order processRefund(String id, Employee e) {
+        Order o = findById(id);
+        o.setStatus(OrderStatus.REFUNDED);
+        o.setEmployee(e);
+        return orderRepo.save(o);
     }
 
-    //trả đơn
     @Override
-    public Order requestReturn(String id, String reason, Employee employee) {
-        Order order = findById(id);
-
-        if (order.getStatus() != OrderStatus.DELIVERED) {
-            throw new IllegalStateException("Chỉ được hoàn trả đơn hàng đã giao thành công.");
-        }
-
-        if (employee == null || employee.getId() == null) {
-            throw new IllegalArgumentException("Yêu cầu hoàn trả phải do nhân viên xác nhận.");
-        }
-
-        Employee emp = employeeService.findEmployeeById(employee.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nhân viên ID: " + employee.getId()));
-        order.setStatus(OrderStatus.RETURNED);
-        order.setEmployee(emp);
-        order.setCancelReason(reason); // Dùng lại cancelReason cho lý do hoàn trả
-
-        return orderRepo.save(order);
+    public Order updateStatus(String id, OrderStatus s, String reason, Employee e) {
+        Order o = findById(id);
+        o.setStatus(s);
+        o.setEmployee(e);
+        o.setCancelReason(reason);
+        return orderRepo.save(o);
     }
 
-    //Hoàn tiền đơn hàng
+    /* ===================== TOTAL ===================== */
+
     @Override
-    public Order processRefund(String id, Employee employee) {
-        Order order = findById(id);
-
-        if (order.getStatus() != OrderStatus.RETURNED) {
-            throw new IllegalStateException("Chỉ hoàn tiền cho đơn hàng đã được hoàn trả (RETURNED).");
-        }
-
-        if (employee == null || employee.getId() == null) {
-            throw new IllegalArgumentException("Hoàn tiền phải do nhân viên thực hiện.");
-        }
-
-        Employee emp = employeeService.findEmployeeById(employee.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nhân viên ID: " + employee.getId()));
-        order.setStatus(OrderStatus.REFUNDED);
-        order.setEmployee(emp);
-        return orderRepo.save(order);
+    public BigDecimal calculateTotal(String id) {
+        return findById(id).getTotal();
     }
 
-    // Cập nhật trạng thái đơn hàng với kiểm tra vai trò và trạng thái hợp lệ
+    /* ===================== GẮN ĐƠN GUEST ===================== */
+
     @Override
-    public Order updateStatus(String id, OrderStatus newStatus, String cancelReason, Employee employee) {
-        Order order = findById(id);
-        OrderStatus current = order.getStatus();
-
-        // 1. Nếu là HỦY, gọi phương thức hủy chuyên biệt (cancelByEmployee)
-        if (newStatus == OrderStatus.CANCELLED) {
-            // Yêu cầu phải có nhân viên để cập nhật trạng thái
-            if (employee == null || employee.getId() == null) {
-                throw new IllegalArgumentException("Hủy đơn hàng phải do nhân viên thực hiện.");
-            }
-            return cancelByEmployee(id, cancelReason, employee);
-        }
-
-        // 2. Kiểm tra vai trò và trạng thái chuyển đổi
-        if (employee == null || employee.getId() == null) {
-            throw new IllegalArgumentException("Thay đổi trạng thái sang " + newStatus + " phải do nhân viên thực hiện.");
-        }
-
-        Employee emp = employeeService.findEmployeeById(employee.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nhân viên ID: " + employee.getId()));
-
-        // Logic kiểm tra chuyển đổi trạng thái tuần tự
-        switch (newStatus) {
-            case CONFIRMED -> {
-                if (current != OrderStatus.PENDING)
-                    throw new IllegalStateException("Chỉ có thể xác nhận từ PENDING.");
-            }
-            case PROCESSING -> {
-                if (current != OrderStatus.CONFIRMED)
-                    throw new IllegalStateException("Chỉ có thể xử lý từ CONFIRMED.");
-            }
-            case SHIPPING -> {
-                if (current != OrderStatus.PROCESSING)
-                    throw new IllegalStateException("Chỉ có thể giao hàng từ PROCESSING.");
-            }
-            case DELIVERED -> {
-                if (current != OrderStatus.SHIPPING)
-                    throw new IllegalStateException("Chỉ có thể đánh dấu giao hàng từ SHIPPING.");
-            }
-            default -> {
-                throw new IllegalStateException("Trạng thái chuyển đổi không hợp lệ hoặc cần sử dụng hàm chuyên biệt.");
-            }
-        }
-
-        order.setEmployee(emp);
-        order.setStatus(newStatus);
-        return orderRepo.save(order);
+    @Transactional
+    public void linkGuestOrders(String phone, Customer customer) {
+        if (phone == null || phone.isBlank() || customer == null) return;
+        orderRepo.linkGuestOrdersToCustomer(customer, phone);
     }
-
 }
