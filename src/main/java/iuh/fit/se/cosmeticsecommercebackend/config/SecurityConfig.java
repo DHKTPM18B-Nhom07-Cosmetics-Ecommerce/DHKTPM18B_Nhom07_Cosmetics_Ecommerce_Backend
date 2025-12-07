@@ -35,11 +35,13 @@ public class SecurityConfig {
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    // 1. Bean để mã hóa mật khẩu
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    // 2. Bean quản lý xác thực
     @Bean
     public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
         return http.getSharedObject(AuthenticationManagerBuilder.class)
@@ -47,6 +49,7 @@ public class SecurityConfig {
                 .build();
     }
 
+    // 3. Bean cung cấp cách thức xác thực chi tiết
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -55,10 +58,15 @@ public class SecurityConfig {
         return authProvider;
     }
 
+    // 4. Cấu hình CORS: Cho phép tất cả các nguồn gốc (Origin) cho mục đích phát triển.
+    // Added by Trang: Custom CORS Source – Security sẽ dùng cấu hình này
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
+
+        // FE Vite
         config.setAllowedOriginPatterns(List.of("http://localhost:5173"));
+
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
@@ -68,31 +76,36 @@ public class SecurityConfig {
         return source;
     }
 
+    // 5. Cấu hình chuỗi lọc bảo mật
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable)
+                // Tắt CSRF (vì dùng API)
+                .csrf(csrf -> csrf.disable())
+
+                //Added by trang: Enable CORS for FE (Vite 5173)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .formLogin(AbstractHttpConfigurer::disable)
-                .httpBasic(AbstractHttpConfigurer::disable)
 
-                // ⭐ QUAN TRỌNG: Đặt rule CỤ THỂ HƠN lên TRƯỚC
+                // Tắt form login trắng bóc kia
+                .formLogin(form -> form.disable())
+                .httpBasic(basic -> basic.disable())
+
+                // CHO PHÉP TẤT CẢ TRONG LÚC DEV (sau này sửa lại)
                 .authorizeHttpRequests(auth -> auth
-                        // 1️⃣ Admin endpoints - yêu cầu ADMIN hoặc EMPLOYEE
-                        .requestMatchers("/api/orders/admin/**").permitAll()
-
-                        // 2️⃣ Customer endpoints - permitAll (hoặc authenticated nếu muốn)
-                        .requestMatchers("/api/orders", "/api/orders/**").permitAll()
-                        .requestMatchers("/api/addresses/**").permitAll()
-
-                        // 3️⃣ Các endpoints khác
+                        .requestMatchers("/api/orders/admin/**").hasAnyAuthority("ADMIN", "EMPLOYEE")
+                        .requestMatchers("/api/orders", "/api/orders/**", "/api/addresses/**" ).permitAll()
                         .anyRequest().permitAll()
                 )
+                .csrf(AbstractHttpConfigurer::disable)
 
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authenticationProvider(authenticationProvider())
+                .authenticationProvider(authenticationProvider())  // vẫn giữ
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
+
+
 }

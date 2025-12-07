@@ -93,6 +93,11 @@ public class CartItemServiceImpl implements CartItemService {
         updateCartTotal(cart);
     }
 
+    @Override
+    public void deleteCartItemById(Long id) {
+        cartItemRepository.deleteById(id);
+    }
+
     // Hàm phụ để tính tổng tiền và lưu giỏ hàng
     private void updateCartTotal(Cart cart) {
         BigDecimal total = BigDecimal.ZERO;

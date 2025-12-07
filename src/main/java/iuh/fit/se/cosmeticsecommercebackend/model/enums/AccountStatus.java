@@ -12,12 +12,9 @@ public enum AccountStatus {
     /**
      * Tài khoản bị vô hiệu hóa
      */
-    DISABLED,
+    DISABLED
     
-    /**
-     * Tài khoản bị khóa
-     */
-    LOCKED
+
 
 }
 

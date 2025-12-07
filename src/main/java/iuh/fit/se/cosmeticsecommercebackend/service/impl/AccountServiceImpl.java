@@ -35,6 +35,9 @@ public class AccountServiceImpl implements AccountService {
     @Autowired
     private MailService mailService;
 
+    @Autowired
+    private iuh.fit.se.cosmeticsecommercebackend.repository.CustomerRepository customerRepository;
+
 
     // [CONSTRUCTOR CŨ CỦA NHÓM - GIỮ NGUYÊN Y XÌ]
     // Bạn tuyệt đối không thêm tham số nào vào đây nhé
@@ -158,5 +161,10 @@ public class AccountServiceImpl implements AccountService {
         }
 
         return pageResult;
+    }
+
+    @Override
+    public iuh.fit.se.cosmeticsecommercebackend.model.Customer findCustomerByAccountId(Long accountId) {
+        return customerRepository.findByAccount_Id(accountId).orElse(null);
     }
 }

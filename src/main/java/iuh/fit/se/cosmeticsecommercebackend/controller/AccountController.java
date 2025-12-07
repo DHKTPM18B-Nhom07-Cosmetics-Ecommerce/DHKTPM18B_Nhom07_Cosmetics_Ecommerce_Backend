@@ -115,4 +115,16 @@ public class AccountController {
         }
         return ResponseEntity.ok(List.of()); // Trả về list rỗng nếu lỗi
     }
+
+    // API: Tìm customer theo accountId, trả về customerId
+    @GetMapping("/{accountId}/customer-id")
+    public ResponseEntity<Long> getCustomerIdByAccountId(@PathVariable Long accountId) {
+        // Tìm customer theo accountId
+        iuh.fit.se.cosmeticsecommercebackend.model.Customer customer = accountService.findCustomerByAccountId(accountId);
+        if (customer != null && customer.getId() != null) {
+            return ResponseEntity.ok(customer.getId());
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

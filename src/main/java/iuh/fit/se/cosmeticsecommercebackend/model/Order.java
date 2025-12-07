@@ -3,6 +3,7 @@ package iuh.fit.se.cosmeticsecommercebackend.model;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -42,21 +43,19 @@ import java.util.List;
 @ToString(exclude = {"customer", "employee", "orderDetails", "reviews"})
 @EqualsAndHashCode(exclude = {"customer", "employee", "orderDetails", "reviews"})
 public class Order {
-    
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "order_id")
-    private Long id;
-    
+    @Column(name = "order_id", length = 20)
+    private String id;
     /**
      * Quan hệ n-1 với Customer
      * Nhiều Order thuộc về 1 Customer
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id", nullable = false)
-    @JsonManagedReference("order-customer")
+    @JoinColumn(name = "customer_id", nullable = true)
+    @JsonIgnoreProperties({"addresses", "orders", "cart", "reviews", "customerVouchers", "voucherRedemptions", "wishList"})
     private Customer customer;
-    
+
     /**
      * Quan hệ n-1 với Employee
      * Nhiều Order được xử lý bởi 1 Employee
@@ -69,21 +68,22 @@ public class Order {
      * Nhiều Order có thể cùng 1 Address
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "address_id", nullable = false)
+    @JoinColumn(name = "address_id", nullable = true)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"customer"})
     private Address address;
-    
+
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal total;
-    
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private OrderStatus status = OrderStatus.PENDING;
-    
+
     @Column(length = 500)
     private String cancelReason;
-    
+
     private LocalDateTime canceledAt;
-    
+
     @Column(nullable = false)
     private LocalDateTime orderDate=LocalDateTime.now();
     @Column(name = "shipping_fee", nullable = false, precision = 10, scale = 2)
@@ -104,7 +104,7 @@ public class Order {
     public Order() {
     }
 
-    public Order(Long id, Customer customer, Employee employee, Address address, BigDecimal total, OrderStatus status, String cancelReason, LocalDateTime canceledAt, LocalDateTime orderDate, BigDecimal shippingFee, List<OrderDetail> orderDetails, List<VoucherRedemption> voucherRedemptions) {
+    public Order(String id, Customer customer, Employee employee, Address address, BigDecimal total, OrderStatus status, String cancelReason, LocalDateTime canceledAt, LocalDateTime orderDate, BigDecimal shippingFee, List<OrderDetail> orderDetails, List<VoucherRedemption> voucherRedemptions) {
         this.id = id;
         this.customer = customer;
         this.employee = employee;
@@ -119,7 +119,7 @@ public class Order {
         this.voucherRedemptions = voucherRedemptions;
     }
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
@@ -167,7 +167,7 @@ public class Order {
         return voucherRedemptions;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -215,4 +215,3 @@ public class Order {
         this.voucherRedemptions = voucherRedemptions;
     }
 }
-
