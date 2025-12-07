@@ -12,18 +12,18 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface OrderService {
+
+    // ====== CREATE ======
     Order createOrder(Order order);
     
     CreateOrderResponse createOrderFromRequest(CreateOrderRequest request);
 
+    // ====== READ ======
     List<Order> getAll();
 
     Order findById(String id);
 
-   // Order updateOrder(String id, Order orderDetails);
-
-    //PHUONG THUC TIM KIEM
-    //tim don hang theo KH
+    // ====== SEARCH ======
     List<Order> findByCustomer(Customer customer);
     //tim don hang theo NV
     List<Order> findByEmployee(Employee employee);
@@ -60,4 +60,7 @@ public interface OrderService {
     Order updateStatus(String id, OrderStatus newStatus, String cancelReason, Employee employee);
     //tinh tong tien don hang dua tren chi tiet don hang
     BigDecimal calculateTotal(String orderId);
+
+    // GẮN ĐƠN GUEST SAU KHI ĐĂNG KÝ
+    void linkGuestOrders(String phone, Customer customer);
 }

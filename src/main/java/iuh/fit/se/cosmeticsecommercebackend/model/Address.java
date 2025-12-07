@@ -4,13 +4,7 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.util.UUID;
-
-/**
- * Entity đại diện cho địa chỉ giao hàng
- * Quan hệ n-1 với Customer
- */
 @Entity
 @Table(name = "addresses")
 @NoArgsConstructor
@@ -18,22 +12,23 @@ import java.util.UUID;
 @ToString(exclude = "customer")
 @EqualsAndHashCode(exclude = "customer")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+
 public class Address {
 
     @Id
-    @Column(name = "address_id", length = 20)
+    @Column(name = "address_id")
     private Long id;
 
     /**
-     * Quan hệ n-1 với Customer
-     * Nhiều Address thuộc về 1 Customer
+     * Nhiều Address có thể thuộc 1 Customer
+     * Guest checkout → customer = NULL
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = true)
     @JsonBackReference
     private Customer customer;
 
-    @Column(nullable = true, length = 100, name = "full_name")
+    @Column(nullable = true, length = 100)
     private String fullName;
 
     @Column(nullable = true, length = 20)
@@ -50,53 +45,15 @@ public class Address {
 
     @Column(nullable = true, length = 100)
     private String country;
-    
+
     /**
-     * Đánh dấu địa chỉ mặc định
-     * Chỉ có 1 địa chỉ mặc định cho mỗi customer
+     * Chỉ áp dụng cho address của CUSTOMER
+     * Guest luôn = false
      */
     @Column(name = "is_default")
     private boolean isDefault = false;
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public void setCustomer(Customer customer) {
-        this.customer = customer;
-    }
-
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
-    }
-
-    public void setPhone(String phone) {
-        this.phone = phone;
-    }
-
-    public void setAddress(String address) {
-        this.address = address;
-    }
-
-    public void setCity(String city) {
-        this.city = city;
-    }
-
-    public void setState(String state) {
-        this.state = state;
-    }
-
-    public void setCountry(String country) {
-        this.country = country;
-    }
-
-    public boolean isDefault() {
-        return isDefault;
-    }
-
-    public void setDefault(boolean aDefault) {
-        isDefault = aDefault;
-    }
+    /* ===== GETTER / SETTER ===== */
 
     public Long getId() {
         return id;
@@ -130,8 +87,46 @@ public class Address {
         return country;
     }
 
-    public static Long generateAddressId() {
-        return Math.abs(UUID.randomUUID().getMostSignificantBits());
+    public boolean isDefault() {
+        return isDefault;
     }
+
+    public void setCustomer(Customer customer) {
+        this.customer = customer;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
+    public void setState(String state) {
+        this.state = state;
+    }
+
+    public void setCountry(String country) {
+        this.country = country;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setDefault(boolean aDefault) {
+        isDefault = aDefault;
+    }
+    public static Long generateAddressId() {
+        return Math.abs(UUID.randomUUID().getMostSignificantBits());}
 
 }

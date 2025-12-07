@@ -6,6 +6,7 @@ import iuh.fit.se.cosmeticsecommercebackend.model.Order;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.OrderStatus;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -15,8 +16,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, String> {
+
     @EntityGraph(value = "order-full-details-graph", type = EntityGraph.EntityGraphType.LOAD)
     Optional<Order> findById(String id);
+
     @Override
     @EntityGraph(attributePaths = {"customer", "address"})
     List<Order> findAll();
@@ -50,5 +53,18 @@ List<Order> findByStatusAndOrderDateBetween(OrderStatus status, LocalDateTime st
             @Param("accountId") Long accountId,
             @Param("status") OrderStatus status,
             @Param("startTime") LocalDateTime startTime
+    );
+
+    // GẮN ĐƠN GUEST SAU KHI ĐĂNG KÝ
+    @Modifying
+    @Query("""
+        UPDATE Order o
+        SET o.customer = :customer
+        WHERE o.customer IS NULL
+          AND o.address.phone = :phone
+    """)
+    int linkGuestOrdersToCustomer(
+            @Param("customer") Customer customer,
+            @Param("phone") String phone
     );
 }

@@ -326,7 +326,8 @@ public class VoucherController {
 
         try {
             return Integer.parseInt(s);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         return null;
     }
@@ -364,7 +365,8 @@ public class VoucherController {
             for (Object item : list) {
                 try {
                     ids.add(Long.parseLong(item.toString()));
-                } catch (Exception ignore) {}
+                } catch (Exception ignore) {
+                }
             }
             return ids;
         }
@@ -377,31 +379,74 @@ public class VoucherController {
         for (String part : raw.split(",")) {
             try {
                 ids.add(Long.parseLong(part.trim()));
-            } catch (Exception ignore) {}
+            } catch (Exception ignore) {
+            }
         }
 
         return ids;
     }
 
+    // ================= APPLY VOUCHER =================
+
     @PostMapping("/apply")
     public ResponseEntity<?> applyVoucher(@RequestBody Map<String, Object> body) {
-        try {
-            if (!body.containsKey("code"))
-                return ResponseEntity.badRequest().body(Map.of("error", "Thiếu mã voucher (code)"));
 
-            String code = body.get("code").toString();
+        Object codeObj = body.get("code");
+        Object itemsObj = body.get("items");
 
-            List<Map<String, Object>> items =
-                    (List<Map<String, Object>>) body.get("items");
-
-            if (items == null || items.isEmpty())
-                return ResponseEntity.badRequest().body(Map.of("error", "Thiếu danh sách items"));
-
-            return ResponseEntity.ok(service.applyVoucher(code, items));
-
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        if (codeObj == null || codeObj.toString().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "valid", false,
+                    "message", "Thiếu mã voucher",
+                    "discount", 0
+            ));
         }
+
+        if (!(itemsObj instanceof List<?> items) || items.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "valid", false,
+                    "message", "Danh sách sản phẩm trống",
+                    "discount", 0
+            ));
+        }
+
+        return ResponseEntity.ok(
+                service.applyVoucher(
+                        codeObj.toString().trim(),
+                        (List<Map<String, Object>>) items
+                )
+        );
     }
+
+
+    @PostMapping("/apply-multiple")
+    public ResponseEntity<?> applyMultiple(@RequestBody Map<String, Object> body) {
+
+        Object codesObj = body.get("codes");
+        Object itemsObj = body.get("items");
+
+        if (!(codesObj instanceof List<?> codes) || codes.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "valid", false,
+                    "message", "Chưa chọn voucher"
+            ));
+        }
+
+        if (!(itemsObj instanceof List<?> items) || items.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "valid", false,
+                    "message", "Giỏ hàng trống"
+            ));
+        }
+
+        return ResponseEntity.ok(
+                service.applyMultipleVouchers(
+                        (List<String>) codes,
+                        (List<Map<String, Object>>) items
+                )
+        );
+    }
+
+
 
 }
