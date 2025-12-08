@@ -1,5 +1,6 @@
 package iuh.fit.se.cosmeticsecommercebackend.controller;
 
+import iuh.fit.se.cosmeticsecommercebackend.payload.CustomerIdResponse;
 import iuh.fit.se.cosmeticsecommercebackend.model.Account;
 import iuh.fit.se.cosmeticsecommercebackend.model.Address;
 import iuh.fit.se.cosmeticsecommercebackend.model.Customer;
@@ -35,6 +36,16 @@ public class CustomerController {
     public ResponseEntity<Customer> getCustomerById(@PathVariable Long id){
         Customer customer = customerService.findById(id);
         return ResponseEntity.ok(customer);
+    }
+
+    // 🔹 Lấy khách hàng theo account ID
+    @GetMapping("/account/{accountId}")
+    public ResponseEntity<CustomerIdResponse> getCustomerByAccountId(@PathVariable Long accountId){
+        Customer customer = customerService.findByAccountId(accountId);
+        if (customer == null) {
+            throw new EntityNotFoundException("Không tìm thấy khách hàng với account ID: " + accountId);
+        }
+        return ResponseEntity.ok(new CustomerIdResponse(customer.getId()));
     }
 
     // 🔹 Cập nhật 1 địa chỉ (PUT /api/addresses/{id})

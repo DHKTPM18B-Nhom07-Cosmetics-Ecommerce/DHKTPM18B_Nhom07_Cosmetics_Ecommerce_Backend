@@ -3,6 +3,9 @@ package iuh.fit.se.cosmeticsecommercebackend.controller;
 import iuh.fit.se.cosmeticsecommercebackend.model.Customer;
 import iuh.fit.se.cosmeticsecommercebackend.model.Product;
 import iuh.fit.se.cosmeticsecommercebackend.model.Review;
+import iuh.fit.se.cosmeticsecommercebackend.payload.ReviewRequest;
+import iuh.fit.se.cosmeticsecommercebackend.repository.CustomerRepository;
+import iuh.fit.se.cosmeticsecommercebackend.repository.ProductRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.ReviewService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -17,19 +20,39 @@ import java.util.NoSuchElementException;
 @RequestMapping("/api/reviews")
 public class ReviewController {
     private final ReviewService reviewService;
+    private final CustomerRepository customerRepository;
+    private final ProductRepository productRepository;
 
-    public ReviewController(ReviewService reviewService) {
+    public ReviewController(ReviewService reviewService, CustomerRepository customerRepository, ProductRepository productRepository) {
         this.reviewService = reviewService;
+        this.customerRepository = customerRepository;
+        this.productRepository = productRepository;
     }
 
     // --- CRUD CO BAN ---
     
     /** POST /api/reviews : Tao danh gia moi */
     @PostMapping
-    public ResponseEntity<Review> createReview(@RequestBody Review review) {
+    public ResponseEntity<Review> createReview(@RequestBody ReviewRequest request) {
         try {
+            // Lay Customer va Product tu database
+            Customer customer = customerRepository.findById(request.getCustomerId())
+                    .orElseThrow(() -> new NoSuchElementException("Customer not found"));
+            Product product = productRepository.findById(request.getProductId())
+                    .orElseThrow(() -> new NoSuchElementException("Product not found"));
+            
+            // Tao Review entity
+            Review review = new Review();
+            review.setCustomer(customer);
+            review.setProduct(product);
+            review.setRating(request.getRating());
+            review.setComment(request.getComment());
+            review.setActive(request.isActive());
+            
             Review newReview = reviewService.createReview(review);
             return new ResponseEntity<>(newReview, HttpStatus.CREATED);
+        } catch (NoSuchElementException e) {
+            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
         } catch (Exception e) {
             return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
         }

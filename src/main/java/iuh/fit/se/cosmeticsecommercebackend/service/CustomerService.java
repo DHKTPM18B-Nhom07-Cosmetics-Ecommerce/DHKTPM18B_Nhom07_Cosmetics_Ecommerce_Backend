@@ -13,4 +13,5 @@ public interface CustomerService {
     public void delete(Long id);
 
     Customer findByAccountUsername(String username);
+    Customer findByAccountId(Long accountId);
 }

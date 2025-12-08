@@ -50,4 +50,10 @@ public class CustomerServiceImpl implements CustomerService {
         return customerRepository.findByAccount_Username(username)
                 .orElse(null); // Hoặc ném ngoại lệ
     }
+
+    @Override
+    public Customer findByAccountId(Long accountId) {
+        return customerRepository.findByAccount_Id(accountId)
+                .orElse(null);
+    }
 }
