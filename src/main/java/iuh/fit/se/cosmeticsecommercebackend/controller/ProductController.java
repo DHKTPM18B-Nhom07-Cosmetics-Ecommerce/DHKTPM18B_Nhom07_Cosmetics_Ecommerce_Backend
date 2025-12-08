@@ -46,8 +46,8 @@ public class ProductController {
             p.setName(request.getName());
             p.setDescription(request.getDescription());
             p.setImages(request.getImages());
-            if (request.getIsActive() != null) {
-                p.setActive(request.getIsActive());
+            if (request.getActive() != null) {
+                p.setActive(request.getActive());
             }
             
             if (request.getCategoryId() != null) {
@@ -90,8 +90,8 @@ public class ProductController {
             p.setName(request.getName());
             p.setDescription(request.getDescription());
             p.setImages(request.getImages());
-            if (request.getIsActive() != null) {
-                p.setActive(request.getIsActive());
+            if (request.getActive() != null) {
+                p.setActive(request.getActive());
             }
             
             if (request.getCategoryId() != null) {
