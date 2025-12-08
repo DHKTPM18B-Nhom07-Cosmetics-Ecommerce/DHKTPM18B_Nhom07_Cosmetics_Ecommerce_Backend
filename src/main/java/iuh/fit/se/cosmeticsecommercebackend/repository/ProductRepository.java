@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
@@ -16,5 +17,8 @@ JOIN p.variants v
 WHERE v.id = :variantId
 """)
     Optional<Product> findByVariantId(@Param("variantId") Long variantId);
+
+    // Tim theo trang thai active 
+    List<Product> findByIsActive(boolean isActive);
 
 }

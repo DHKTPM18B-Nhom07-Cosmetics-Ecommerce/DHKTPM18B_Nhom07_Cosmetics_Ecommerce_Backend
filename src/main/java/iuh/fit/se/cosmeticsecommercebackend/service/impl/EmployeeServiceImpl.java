@@ -101,4 +101,8 @@ public class EmployeeServiceImpl implements EmployeeService {
         // Sau đó xóa Account
         accountRepository.delete(employee.getAccount());
     }
+    @Override
+    public Optional<Employee> findByAccountUsername(String username) {
+        return employeeRepository.findByAccountUsername(username);
+    }
 }

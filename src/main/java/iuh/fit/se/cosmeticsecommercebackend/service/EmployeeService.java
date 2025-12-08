@@ -11,4 +11,5 @@ public interface EmployeeService {
     Employee createEmployee(Employee employee);
     Employee updateEmployee(Long id, Employee employeeDetails);
     void deleteEmployeeById(Long id);
+    Optional<Employee> findByAccountUsername(String username);
 }

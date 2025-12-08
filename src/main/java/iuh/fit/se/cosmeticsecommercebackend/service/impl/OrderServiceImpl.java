@@ -30,9 +30,13 @@ public class OrderServiceImpl implements OrderService {
     private final ProductVariantService productVariantService;
     private final AddressRepository addressRepository;
     private final CartItemService cartItemService;
+    private final OrderDetailService orderDetailService;
 
     @Autowired
     private RiskService riskService;
+
+    @Autowired(required = false)
+    private MailService mailService; // optional
 
     public OrderServiceImpl(
             OrderRepository orderRepo,
@@ -41,7 +45,8 @@ public class OrderServiceImpl implements OrderService {
             AddressService addressService,
             ProductVariantService productVariantService,
             AddressRepository addressRepository,
-            CartItemService cartItemService
+            CartItemService cartItemService,
+            OrderDetailService orderDetailService
     ) {
         this.orderRepo = orderRepo;
         this.customerService = customerService;
@@ -50,6 +55,7 @@ public class OrderServiceImpl implements OrderService {
         this.productVariantService = productVariantService;
         this.addressRepository = addressRepository;
         this.cartItemService = cartItemService;
+        this.orderDetailService = orderDetailService;
     }
 
     /* ===================== ORDER ID ===================== */
@@ -59,47 +65,15 @@ public class OrderServiceImpl implements OrderService {
                 .format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String prefix = "OD-" + today;
 
-        Optional<String> lastIdOptional = orderRepo.findLastOrderIdByDatePrefix(prefix);
-        int sequence = 1;
+        Optional<String> lastId = orderRepo.findLastOrderIdByDatePrefix(prefix);
+        int seq = lastId
+                .map(id -> Integer.parseInt(id.substring(id.length() - 2)) + 1)
+                .orElse(1);
 
-        if (lastIdOptional.isPresent()) {
-            String lastId = lastIdOptional.get();
-            String seqStr = lastId.substring(lastId.length() - 2);
-            sequence = Integer.parseInt(seqStr) + 1;
-        }
-        return prefix + String.format("%02d", sequence);
+        return prefix + String.format("%02d", seq);
     }
 
-    /* ===================== FORCE LOAD ===================== */
-
-    private void forceLoadOrderListDetails(List<Order> orders) {
-        for (Order order : orders) {
-            if (order.getCustomer() != null && order.getCustomer().getAccount() != null) {
-                order.getCustomer().getAccount().getFullName();
-            }
-            if (order.getOrderDetails() != null) {
-                order.getOrderDetails().forEach(d -> {
-                    if (d.getProductVariant() != null) {
-                        d.getProductVariant().getId();
-                        if (d.getProductVariant().getProduct() != null) {
-                            d.getProductVariant().getProduct().getName();
-                        }
-                        if (d.getProductVariant().getImageUrls() != null) {
-                            d.getProductVariant().getImageUrls().size();
-                        }
-                    }
-                });
-            }
-            if (order.getAddress() != null) {
-                order.getAddress().getAddress();
-            }
-            if (order.getEmployee() != null) {
-                order.getEmployee().getId();
-            }
-        }
-    }
-
-    /* ===================== CREATE ORDER ===================== */
+    /* ===================== CREATE ===================== */
 
     @Override
     public CreateOrderResponse createOrderFromRequest(CreateOrderRequest request) {
@@ -111,7 +85,7 @@ public class OrderServiceImpl implements OrderService {
             customer = customerService.findById(request.getCustomerId());
         }
 
-        // ===== GUEST =====
+        // ===== ADDRESS =====
         if (customer == null) {
             address = new Address();
             address.setId(Address.generateAddressId());
@@ -122,9 +96,7 @@ public class OrderServiceImpl implements OrderService {
             address.setState(request.getShippingState());
             address.setCountry(request.getShippingCountry());
             address = addressRepository.save(address);
-        }
-        // ===== LOGGED IN =====
-        else if (request.getAddressId() != null) {
+        } else if (request.getAddressId() != null) {
             address = addressService.findById(request.getAddressId());
         } else {
             address = customer.getAddresses().stream()
@@ -144,20 +116,13 @@ public class OrderServiceImpl implements OrderService {
         order.setOrderDate(LocalDateTime.now());
         order.setStatus(OrderStatus.PENDING);
         order.setShippingFee(
-                request.getShippingFee() != null
-                        ? request.getShippingFee()
-                        : new BigDecimal("30000")
+                request.getShippingFee() != null ? request.getShippingFee() : new BigDecimal("30000")
         );
 
-        // GẮN GUEST_PHONE
+        // ✅ guest phone
         if (customer == null) {
-//            order.setGuestPhone(request.getShippingPhone());
             order.setGuestPhone(normalizePhone(request.getShippingPhone()));
-
-
         }
-
-
 
         List<OrderDetail> details = new ArrayList<>();
         BigDecimal subtotal = BigDecimal.ZERO;
@@ -175,11 +140,11 @@ public class OrderServiceImpl implements OrderService {
             od.setQuantity(dr.getQuantity());
             od.setUnitPrice(pv.getPrice());
 
-            BigDecimal total = pv.getPrice()
+            BigDecimal lineTotal = pv.getPrice()
                     .multiply(BigDecimal.valueOf(dr.getQuantity()));
-            od.setTotalPrice(total);
+            od.setTotalPrice(lineTotal);
 
-            subtotal = subtotal.add(total);
+            subtotal = subtotal.add(lineTotal);
             pv.setQuantity(pv.getQuantity() - dr.getQuantity());
 
             details.add(od);
@@ -187,14 +152,21 @@ public class OrderServiceImpl implements OrderService {
 
         order.setOrderDetails(details);
 
-        BigDecimal discount =
-                request.getDiscount() != null ? request.getDiscount() : BigDecimal.ZERO;
-
+        BigDecimal discount = request.getDiscount() != null ? request.getDiscount() : BigDecimal.ZERO;
         order.setTotal(subtotal.add(order.getShippingFee()).subtract(discount));
 
         Order saved = orderRepo.save(order);
 
-        // ===== RESPONSE =====
+        // mail optional
+        if (mailService != null && saved.getCustomer() != null && saved.getCustomer().getAccount() != null) {
+            try {
+                mailService.sendOrderConfirmationEmail(
+                        saved.getCustomer().getAccount().getUsername(),
+                        saved
+                );
+            } catch (Exception ignored) {}
+        }
+
         CreateOrderResponse res = new CreateOrderResponse();
         res.setId(saved.getId());
         res.setStatus(saved.getStatus().name());
@@ -219,13 +191,11 @@ public class OrderServiceImpl implements OrderService {
         return res;
     }
 
-    /* ===================== BASIC QUERY ===================== */
+    /* ===================== READ ===================== */
 
     @Override
     public List<Order> getAll() {
-        List<Order> orders = orderRepo.findAll();
-        forceLoadOrderListDetails(orders);
-        return orders;
+        return orderRepo.findAll();
     }
 
     @Override
@@ -237,9 +207,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public List<Order> getMyOrders(String username) {
         Customer c = customerService.findByAccountUsername(username);
-        List<Order> orders = orderRepo.findByCustomer(c);
-        forceLoadOrderListDetails(orders);
-        return orders;
+        return orderRepo.findByCustomer(c);
     }
 
     @Override
@@ -252,25 +220,41 @@ public class OrderServiceImpl implements OrderService {
         return o;
     }
 
-    /* ===================== GUEST LINK ===================== */
+    /* ===================== SEARCH ===================== */
 
-    @Override
-    @Transactional
-    public void linkGuestOrders(String phone, Customer customer) {
-        if (phone == null || phone.isBlank() || customer == null) return;
-        orderRepo.linkGuestOrdersToCustomer(customer, phone);
+    @Override public List<Order> findByCustomer(Customer c) { return orderRepo.findByCustomer(c); }
+    @Override public List<Order> findByEmployee(Employee e) { return orderRepo.findByEmployee(e); }
+    @Override public List<Order> findByStatus(OrderStatus s) { return orderRepo.findByStatus(s); }
+    @Override public List<Order> findByOrderDateBetween(LocalDateTime s, LocalDateTime e) {
+        return orderRepo.findByOrderDateBetween(s, e);
+    }
+    @Override public List<Order> findByStatusAndCustomer(OrderStatus s, Customer c) {
+        return orderRepo.findByStatusAndCustomer(s, c);
+    }
+    @Override public List<Order> findByTotalBetween(BigDecimal min, BigDecimal max) {
+        return orderRepo.findByTotalBetween(min, max);
+    }
+    @Override public List<Order> findByStatusAndOrderDateBetween(OrderStatus s, LocalDateTime st, LocalDateTime ed) {
+        return orderRepo.findByStatusAndOrderDateBetween(s, st, ed);
     }
 
     /* ===================== STATUS ===================== */
 
     @Override
     public Order cancelByCustomer(String orderId, String reason, Customer customer) {
+
         Order o = findById(orderId);
+
+        if (o.getStatus() != OrderStatus.PENDING) {
+            throw new IllegalStateException("Chỉ có thể hủy đơn PENDING");
+        }
+
+        orderDetailService.restoreStockForOrder(orderId);
+
         o.setStatus(OrderStatus.CANCELLED);
         o.setCancelReason(reason);
         o.setCanceledAt(LocalDateTime.now());
 
-        // anti-spam
         if (customer.getAccount() != null) {
             riskService.checkAndAlertOrderSpam(
                     customer.getAccount().getId(),
@@ -308,9 +292,10 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public Order updateStatus(String id, OrderStatus status, String cancelReason, Employee employee) {
+    public Order updateStatus(String id, OrderStatus status, String reason, Employee employee) {
         Order o = findById(id);
         o.setStatus(status);
+        o.setCancelReason(reason);
         o.setEmployee(employee);
         return orderRepo.save(o);
     }
@@ -322,60 +307,16 @@ public class OrderServiceImpl implements OrderService {
         return findById(orderId).getTotal();
     }
 
-    /* ===================== FILTER ===================== */
+    /* ===================== GUEST LINK ===================== */
 
     @Override
-    public List<Order> findByCustomer(Customer customer) {
-        List<Order> orders = orderRepo.findByCustomer(customer);
-        forceLoadOrderListDetails(orders);
-        return orders;
+    public void linkGuestOrders(String phone, Customer customer) {
+        if (phone == null || phone.isBlank() || customer == null) return;
+        orderRepo.linkGuestOrdersToCustomer(customer, normalizePhone(phone));
     }
 
-    @Override
-    public List<Order> findByEmployee(Employee employee) {
-        List<Order> orders = orderRepo.findByEmployee(employee);
-        forceLoadOrderListDetails(orders);
-        return orders;
-    }
-
-    @Override
-    public List<Order> findByStatus(OrderStatus status) {
-        List<Order> orders = orderRepo.findByStatus(status);
-        forceLoadOrderListDetails(orders);
-        return orders;
-    }
-
-    @Override
-    public List<Order> findByOrderDateBetween(LocalDateTime s, LocalDateTime e) {
-        List<Order> orders = orderRepo.findByOrderDateBetween(s, e);
-        forceLoadOrderListDetails(orders);
-        return orders;
-    }
-
-    @Override
-    public List<Order> findByStatusAndCustomer(OrderStatus s, Customer c) {
-        List<Order> orders = orderRepo.findByStatusAndCustomer(s, c);
-        forceLoadOrderListDetails(orders);
-        return orders;
-    }
-
-    @Override
-    public List<Order> findByTotalBetween(BigDecimal min, BigDecimal max) {
-        List<Order> orders = orderRepo.findByTotalBetween(min, max);
-        forceLoadOrderListDetails(orders);
-        return orders;
-    }
-
-    @Override
-    public List<Order> findByStatusAndOrderDateBetween(OrderStatus s, LocalDateTime st, LocalDateTime ed) {
-        List<Order> orders = orderRepo.findByStatusAndOrderDateBetween(s, st, ed);
-        forceLoadOrderListDetails(orders);
-        return orders;
-    }
-//    thêm mới hỗ trợ
-
+    /* ===================== HELPER ===================== */
     private String normalizePhone(String phone) {
         return phone == null ? null : phone.replaceAll("[^0-9]", "");
     }
-
 }

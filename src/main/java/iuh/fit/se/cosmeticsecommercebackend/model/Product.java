@@ -20,7 +20,7 @@ public class Product {
     @Column(name = "product_id")
     private Long id;
 
-    @Column(length = 200)
+    @Column(nullable = false, length = 200)
     private String name;
 
     @Column(columnDefinition = "TEXT")
@@ -37,25 +37,30 @@ public class Product {
     /* ================= CATEGORY (MANY-TO-ONE) ================= */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
-    @JsonIgnore
+    // Ngăn chặn vòng lặp vô hạn bằng cách bỏ qua danh sách products trong Category
+    @JsonIgnoreProperties("products")
     private Category category;
 
     /* ================= BRAND (MANY-TO-ONE) ================= */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "brand_id", nullable = false)
-    @JsonIgnore
+    // Ngăn chặn vòng lặp vô hạn bằng cách bỏ qua danh sách products trong Brand
+    @JsonIgnoreProperties("products")
     private Brand brand;
 
     /* ================= VARIANTS (ONE-TO-MANY) ================= */
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL,
             orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonIgnore
+    // Ngăn chặn vòng lặp vô hạn bằng cách bỏ qua field product trong ProductVariant
+    // @JsonIgnoreProperties({"product", "orderDetails", "cartItems"}) nên được cân nhắc nếu cần
+    @JsonIgnoreProperties("product")
     private List<ProductVariant> variants = new ArrayList<>();
 
     /* ================= REVIEWS (ONE-TO-MANY) ================= */
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL,
             orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonIgnore
+    // Ngăn chặn vòng lặp vô hạn bằng cách bỏ qua field product trong Review
+    @JsonIgnoreProperties("product")
     private List<Review> reviews = new ArrayList<>();
 
 
@@ -77,6 +82,20 @@ public class Product {
 
     @Transient
     private Boolean inStock;
+
+    @Transient
+    private Integer totalSold;
+
+    public Integer getTotalSold() {
+        if (variants == null) return 0;
+        return variants.stream()
+                .mapToInt(v -> v.getSold() == null ? 0 : v.getSold())
+                .sum();
+    }
+
+    public void setTotalSold(Integer totalSold) {
+        this.totalSold = totalSold;
+    }
 
     @PrePersist
     protected void onCreate() {

@@ -59,4 +59,18 @@ public interface OrderRepository extends JpaRepository<Order, String> {
             @Param("customer") Customer customer,
             @Param("phone") String phone
     );
+
+    @Query("""
+    SELECT COUNT(o)
+    FROM Order o
+    WHERE o.customer.account.id = :accountId
+      AND o.status = :status
+      AND o.orderDate >= :fromDate
+""")
+    long countOrdersByStatusAndDate(
+            @Param("accountId") Long accountId,
+            @Param("status") OrderStatus status,
+            @Param("fromDate") LocalDateTime fromDate
+    );
+
 }

@@ -114,7 +114,7 @@ public class Order {
     private List<OrderDetail> orderDetails = new ArrayList<>();
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-  @JsonIgnore
+    @JsonIgnore
     private List<VoucherRedemption> voucherRedemptions = new ArrayList<>();
 
     public Order() {
