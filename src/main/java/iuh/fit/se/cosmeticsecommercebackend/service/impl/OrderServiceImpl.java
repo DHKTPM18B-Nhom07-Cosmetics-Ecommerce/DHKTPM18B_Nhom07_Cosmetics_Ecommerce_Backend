@@ -249,9 +249,21 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public Order cancelByCustomer(String orderId, String reason, Customer customer) {
         Order o = findById(orderId);
-        o.setStatus(OrderStatus.CANCELLED);
-        o.setCancelReason(reason);
-        o.setCanceledAt(LocalDateTime.now());
+
+        // 1. Kiểm tra quyền sở hữu
+        if (o.getCustomer() == null || !o.getCustomer().getId().equals(customer.getId())) {
+            throw new IllegalArgumentException("Khách hàng không có quyền hủy đơn hàng này.");
+        }
+
+        // 2. Kiểm tra trạng thái cho phép gửi yêu cầu hủy (Chỉ PENDING)
+        if (o.getStatus() != OrderStatus.PENDING) {
+            throw new IllegalStateException("Chỉ đơn hàng ở trạng thái CHỜ XỬ LÝ (PENDING) mới có thể gửi yêu cầu hủy.");
+        }
+
+        // 3. GHI LẠI YÊU CẦU (KHÔNG THAY ĐỔI TRẠNG THÁI sang CANCELLED)
+        o.setCancelReason("Yêu cầu hủy từ KH: " + reason);
+
+        // 4. LƯU VÀ TRẢ VỀ ENTITY
         return orderRepo.save(o);
     }
 

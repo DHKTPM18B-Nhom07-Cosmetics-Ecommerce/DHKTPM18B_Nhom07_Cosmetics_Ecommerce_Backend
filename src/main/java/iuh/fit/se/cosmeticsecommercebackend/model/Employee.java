@@ -31,7 +31,7 @@ public class Employee {
      */
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id", nullable = false, unique = true)
-    @com.fasterxml.jackson.annotation.JsonIgnore
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "employee"})
     private Account account;
 
     public Account getAccount() {
