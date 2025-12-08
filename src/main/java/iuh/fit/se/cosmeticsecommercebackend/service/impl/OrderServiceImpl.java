@@ -27,6 +27,10 @@ public class OrderServiceImpl implements OrderService {
     private final ProductVariantService productVariantService;
     private final AddressRepository addressRepository;
     private final CartItemService cartItemService;
+
+    @Autowired
+    private MailService mailService;
+
     @Autowired
     private iuh.fit.se.cosmeticsecommercebackend.service.RiskService riskService;
     public OrderServiceImpl(
@@ -293,6 +297,19 @@ public class OrderServiceImpl implements OrderService {
 
         // 8️⃣ Lưu đơn hàng (cascade sẽ tự lưu OrderDetail)
         Order savedOrder = orderRepo.save(order);
+        try {
+            if (savedOrder.getCustomer() != null && savedOrder.getCustomer().getAccount() != null) {
+                // Lấy username của tài khoản làm email nhận tin
+                String emailUser = savedOrder.getCustomer().getAccount().getUsername();
+
+                if (emailUser != null && emailUser.contains("@")) {
+                    mailService.sendOrderConfirmationEmail(emailUser, savedOrder);
+                }
+            }
+        } catch (Exception e) {
+            // Log lỗi nhưng không chặn quy trình trả về đơn hàng thành công
+            System.err.println("Không gửi được mail đơn hàng: " + e.getMessage());
+        }
 
         // 9️⃣ Tạo response DTO
         CreateOrderResponse response = new CreateOrderResponse();
