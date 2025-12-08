@@ -32,6 +32,9 @@ public class OrderServiceImpl implements OrderService {
     private final CartItemService cartItemService;
 
     @Autowired
+    private MailService mailService;
+
+    @Autowired
     private RiskService riskService;
 
     public OrderServiceImpl(
@@ -176,7 +179,21 @@ public class OrderServiceImpl implements OrderService {
         BigDecimal discount = request.getDiscount() != null ? request.getDiscount() : BigDecimal.ZERO;
         order.setTotal(subtotal.add(order.getShippingFee()).subtract(discount));
 
+        // 8️⃣ Lưu đơn hàng (cascade sẽ tự lưu OrderDetail)
         Order saved = orderRepo.save(order);
+        try {
+            if (saved.getCustomer() != null && saved.getCustomer().getAccount() != null) {
+                // Lấy username của tài khoản làm email nhận tin
+                String emailUser = saved.getCustomer().getAccount().getUsername();
+
+                if (emailUser != null && emailUser.contains("@")) {
+                    mailService.sendOrderConfirmationEmail(emailUser, saved);
+                }
+            }
+        } catch (Exception e) {
+            // Log lỗi nhưng không chặn quy trình trả về đơn hàng thành công
+            System.err.println("Không gửi được mail đơn hàng: " + e.getMessage());
+        }
 
         CreateOrderResponse res = new CreateOrderResponse();
         res.setId(saved.getId());

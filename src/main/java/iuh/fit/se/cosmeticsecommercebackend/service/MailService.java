@@ -1,12 +1,22 @@
 package iuh.fit.se.cosmeticsecommercebackend.service;
 
 import iuh.fit.se.cosmeticsecommercebackend.model.Account;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import iuh.fit.se.cosmeticsecommercebackend.model.Order;
+import iuh.fit.se.cosmeticsecommercebackend.model.OrderDetail;
+import iuh.fit.se.cosmeticsecommercebackend.model.Address; // Import Address
+import java.text.NumberFormat;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+import java.math.BigDecimal;
 
 import java.time.LocalDateTime;
 
@@ -152,4 +162,93 @@ public class MailService {
             System.err.println("Lỗi gửi email auto-reply: " + e.getMessage());
         }
     }
+
+    /**
+     * [UPDATE] Gửi email xác nhận đơn hàng định dạng HTML đẹp mắt
+     */
+    @Async
+    public void sendOrderConfirmationEmail(String toEmail, Order order) {
+        if (toEmail == null || toEmail.isEmpty()) return;
+
+        MimeMessage mimeMessage = javaMailSender.createMimeMessage();
+
+        try {
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+
+            helper.setFrom(SENDER_EMAIL);
+            helper.setTo(toEmail);
+            helper.setSubject("XÁC NHẬN ĐƠN HÀNG #" + order.getId() + " | EMBROSIA");
+
+            NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
+
+            // ======================= BUILD HTML =======================
+            StringBuilder html = new StringBuilder();
+
+            html.append("<div style='font-family:Arial, sans-serif; font-size:14px; color:#333;'>");
+
+            html.append("<h2 style='color:#444;'>Xác nhận đơn hàng #" + order.getId() + "</h2>");
+            html.append("<p>Xin chào,<br>Đơn hàng của bạn đã được ghi nhận thành công!</p>");
+
+            html.append("<p><strong>Mã đơn hàng:</strong> " + order.getId() + "<br>");
+            html.append("<strong>Ngày đặt:</strong> " + order.getOrderDate() + "</p>");
+
+            html.append("<hr style='margin:16px 0;'>");
+
+            // ======================= PRODUCT LIST =======================
+            html.append("<h3 style='margin-bottom:8px;'>Sản phẩm đã đặt:</h3>");
+            html.append("<table style='width:100%; border-collapse:collapse;'>");
+
+            for (OrderDetail detail : order.getOrderDetails()) {
+                String productName = "Sản phẩm";
+
+                if (detail.getProductVariant() != null && detail.getProductVariant().getProduct() != null) {
+                    productName = detail.getProductVariant().getProduct().getName();
+                }
+
+                BigDecimal price = detail.getUnitPrice();
+                BigDecimal quantity = new BigDecimal(detail.getQuantity());
+                BigDecimal lineTotal = price.multiply(quantity);
+
+                html.append("<tr>");
+                html.append("<td style='padding:6px 0;'>" + productName + " (x" + detail.getQuantity() + ")</td>");
+                html.append("<td style='text-align:right; padding:6px 0;'>" + currencyFormat.format(lineTotal) + "</td>");
+                html.append("</tr>");
+            }
+
+            html.append("</table>");
+
+            html.append("<hr style='margin:16px 0;'>");
+
+            // ======================= TOTAL =======================
+            html.append("<p><strong>Tổng cộng:</strong> " + currencyFormat.format(order.getTotal()) + "</p>");
+
+            html.append("<hr style='margin:16px 0;'>");
+
+            // ======================= ADDRESS =======================
+            html.append("<h3>Địa chỉ giao hàng</h3>");
+            if (order.getAddress() != null) {
+                String address = (order.getAddress().getAddress() != null) ? order.getAddress().getAddress() : "";
+                String city = (order.getAddress().getCity() != null) ? order.getAddress().getCity() : "";
+
+                html.append("<p>" + address);
+                if (!city.isEmpty()) html.append(", " + city);
+                html.append("</p>");
+            } else {
+                html.append("<p>(Theo thông tin đã đăng ký)</p>");
+            }
+
+            html.append("<br><p>Cảm ơn bạn đã mua sắm tại <strong>Embro­sia</strong>!</p>");
+            html.append("</div>");
+
+            helper.setText(html.toString(), true);
+
+            javaMailSender.send(mimeMessage);
+            System.out.println("Đã gửi mail HTML order tới: " + toEmail);
+
+        } catch (Exception e) {
+            System.err.println("Lỗi gửi mail HTML: " + e.getMessage());
+        }
+    }
+
+
 }
