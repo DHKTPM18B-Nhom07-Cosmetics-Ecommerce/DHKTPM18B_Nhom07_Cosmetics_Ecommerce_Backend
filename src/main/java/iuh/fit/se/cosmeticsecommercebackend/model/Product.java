@@ -83,6 +83,20 @@ public class Product {
     @Transient
     private Boolean inStock;
 
+    @Transient
+    private Integer totalSold;
+
+    public Integer getTotalSold() {
+        if (variants == null) return 0;
+        return variants.stream()
+                .mapToInt(v -> v.getSold() == null ? 0 : v.getSold())
+                .sum();
+    }
+
+    public void setTotalSold(Integer totalSold) {
+        this.totalSold = totalSold;
+    }
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
