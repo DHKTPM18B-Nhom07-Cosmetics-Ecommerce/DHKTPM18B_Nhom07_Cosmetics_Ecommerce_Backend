@@ -10,6 +10,8 @@ public interface ProductService {
 
         List<Product> getAll();
 
+        List<Product> findByIsActive(boolean isActive);
+
         Product getById(Long id);
 
         Product create(Product product);
@@ -26,6 +28,7 @@ public interface ProductService {
                 Long maxPrice,
                 Double rating,
                 String stocks,
+                Boolean active,
                 Pageable pageable
         );
     }

@@ -97,4 +97,7 @@ public class ProductSpecification {
             );
         };
     }
+    public static Specification<Product> isActive(boolean active) {
+        return (root, query, cb) -> cb.equal(root.get("isActive"), active);
+    }
 }
