@@ -14,8 +14,6 @@ import java.util.List;
 public interface OrderService {
 
     // ====== CREATE ======
-    Order createOrder(Order order);
-    
     CreateOrderResponse createOrderFromRequest(CreateOrderRequest request);
 
     // ====== READ ======

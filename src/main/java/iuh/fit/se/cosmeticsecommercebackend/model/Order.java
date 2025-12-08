@@ -100,6 +100,11 @@ public class Order {
     @Column(name = "shipping_fee", nullable = false, precision = 10, scale = 2)
     private BigDecimal shippingFee = new BigDecimal("30000.00");
 
+    // THÊM — lưu số điện thoại của guest để gắn đơn sau khi đăng ký
+    @Column(name = "guest_phone", length = 20)
+    private String guestPhone;
+
+
     /**
      * Quan hệ 1-n với OrderDetail
      * 1 Order có nhiều OrderDetail (chi tiết đơn hàng)
@@ -224,5 +229,13 @@ public class Order {
 
     public void setVoucherRedemptions(List<VoucherRedemption> voucherRedemptions) {
         this.voucherRedemptions = voucherRedemptions;
+    }
+
+    public String getGuestPhone() {
+        return guestPhone;
+    }
+
+    public void setGuestPhone(String guestPhone) {
+        this.guestPhone = guestPhone;
     }
 }

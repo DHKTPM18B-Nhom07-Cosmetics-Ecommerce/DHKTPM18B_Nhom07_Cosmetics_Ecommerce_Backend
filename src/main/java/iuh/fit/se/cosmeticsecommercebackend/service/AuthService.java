@@ -58,11 +58,18 @@ public class AuthService {
         customer.setAccount(savedAccount);
         Customer savedCustomer = customerRepository.save(customer);
 
-        // GẮN ĐƠN GUEST → CUSTOMER
-        orderService.linkGuestOrders(request.getPhone(), savedCustomer);
+        // GẮN ĐƠN GUEST → CUSTOMER dựa theo guestPhone
+//        orderService.linkGuestOrders(request.getPhone(), savedCustomer); cũ
+        orderService.linkGuestOrders(
+                normalizePhone(request.getPhone()),
+                savedCustomer
+        );
+
 
         return savedAccount;
     }
+
+
 
     @Transactional
     public void createPasswordResetToken(ForgotPasswordRequest request) {
@@ -94,4 +101,10 @@ public class AuthService {
 
         tokenRepository.delete(resetToken);
     }
+
+    //    helper
+    private String normalizePhone(String phone) {
+        return phone == null ? null : phone.replaceAll("[^0-9]", "");
+    }
+
 }
