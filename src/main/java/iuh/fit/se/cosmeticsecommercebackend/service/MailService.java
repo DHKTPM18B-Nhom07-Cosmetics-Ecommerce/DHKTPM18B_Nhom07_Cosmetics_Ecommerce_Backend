@@ -124,4 +124,32 @@ public class MailService {
             System.err.println("Lỗi gửi mail user warning: " + e.getMessage());
         }
     }
+    /**
+     *  Gửi email tự động phản hồi khi khách hàng điền form Liên hệ
+     */
+    @Async
+    public void sendContactAutoReply(String toEmail, String customerName) {
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        // Dùng lại email người gửi đã cấu hình sẵn
+        message.setFrom(SENDER_EMAIL);
+        message.setTo(toEmail);
+        message.setSubject("XÁC NHẬN: CHÚNG TÔI ĐÃ NHẬN ĐƯỢC CÂU HỎI CỦA BẠN | EMBROSIA");
+
+        String content = "Chào " + customerName + ",\n\n" +
+                "Cảm ơn bạn đã liên hệ với Embrosia Cosmetic.\n" +
+                "Chúng tôi đã nhận được tin nhắn của bạn và sẽ phản hồi trong thời gian sớm nhất (thường trong vòng 24h làm việc).\n\n" +
+                "Trong lúc chờ đợi, bạn có thể tham khảo các câu hỏi thường gặp tại website hoặc gọi hotline nếu cần hỗ trợ gấp.\n\n" +
+                "Trân trọng,\n" +
+                "Đội ngũ Chăm sóc khách hàng Embrosia.";
+
+        message.setText(content);
+
+        try {
+            javaMailSender.send(message);
+            System.out.println("Auto-reply contact email sent to: " + toEmail);
+        } catch (MailException e) {
+            System.err.println("Lỗi gửi email auto-reply: " + e.getMessage());
+        }
+    }
 }
