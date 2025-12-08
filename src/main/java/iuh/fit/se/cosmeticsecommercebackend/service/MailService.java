@@ -166,87 +166,136 @@ public class MailService {
     /**
      * [UPDATE] Gửi email xác nhận đơn hàng định dạng HTML đẹp mắt
      */
+    /**
+     * [FIXED] Gửi email HTML sử dụng MimeMessage (Thay vì SimpleMailMessage)
+     */
     @Async
     public void sendOrderConfirmationEmail(String toEmail, Order order) {
         if (toEmail == null || toEmail.isEmpty()) return;
 
-        MimeMessage mimeMessage = javaMailSender.createMimeMessage();
+        // 1. Dùng MimeMessage để hỗ trợ HTML
+        MimeMessage message = javaMailSender.createMimeMessage();
 
         try {
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            // tham số true ở đây nghĩa là multipart (hỗ trợ file đính kèm/html)
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
             helper.setFrom(SENDER_EMAIL);
             helper.setTo(toEmail);
-            helper.setSubject("XÁC NHẬN ĐƠN HÀNG #" + order.getId() + " | EMBROSIA");
+            helper.setSubject("✨ XÁC NHẬN ĐƠN HÀNG #" + order.getId() + " | EMBROSIA");
 
+            // Format tiền tệ VNĐ
             NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
+            DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
-            // ======================= BUILD HTML =======================
+            // 2. Xây dựng nội dung HTML
             StringBuilder html = new StringBuilder();
+            html.append("<!DOCTYPE html><html><head><style>");
+            html.append("body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }");
+            html.append(".container { max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; }");
+            html.append(".header { background-color: #2E5F6D; color: #fff; padding: 20px; text-align: center; }"); // Màu xanh Embrosia
+            html.append(".content { padding: 20px; background-color: #fff; }");
+            html.append("table { width: 100%; border-collapse: collapse; margin-top: 10px; }");
+            html.append("th { background-color: #f8f9fa; border-bottom: 2px solid #dee2e6; padding: 10px; text-align: left; font-size: 14px; }");
+            html.append("td { border-bottom: 1px solid #dee2e6; padding: 10px; font-size: 14px; }");
+            html.append(".total-row td { font-weight: bold; color: #2E5F6D; }");
+            html.append(".footer { background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #666; }");
+            html.append("</style></head><body>");
 
-            html.append("<div style='font-family:Arial, sans-serif; font-size:14px; color:#333;'>");
+            html.append("<div class='container'>");
 
-            html.append("<h2 style='color:#444;'>Xác nhận đơn hàng #" + order.getId() + "</h2>");
-            html.append("<p>Xin chào,<br>Đơn hàng của bạn đã được ghi nhận thành công!</p>");
+            // --- HEADER ---
+            html.append("<div class='header'>");
+            html.append("<h2 style='margin:0;'>XÁC NHẬN ĐƠN HÀNG</h2>");
+            html.append("<p style='margin:5px 0 0;'>Mã đơn: #").append(order.getId()).append("</p>");
+            html.append("</div>");
 
-            html.append("<p><strong>Mã đơn hàng:</strong> " + order.getId() + "<br>");
-            html.append("<strong>Ngày đặt:</strong> " + order.getOrderDate() + "</p>");
+            // --- CONTENT ---
+            html.append("<div class='content'>");
 
-            html.append("<hr style='margin:16px 0;'>");
+            // Lấy tên khách (Nếu có account lấy tên account, không thì lấy trong Customer)
+            String cusName = "Quý khách";
+            if (order.getCustomer() != null && order.getCustomer().getAccount() != null) {
+                cusName = order.getCustomer().getAccount().getFullName();
+            }
+            html.append("<p>Xin chào <strong>").append(cusName).append("</strong>,</p>");
+            html.append("<p>Cảm ơn bạn đã đặt hàng tại Embrosia. Đơn hàng của bạn đã được ghi nhận vào lúc ").append(order.getOrderDate().format(dateFormat)).append(".</p>");
 
-            // ======================= PRODUCT LIST =======================
-            html.append("<h3 style='margin-bottom:8px;'>Sản phẩm đã đặt:</h3>");
-            html.append("<table style='width:100%; border-collapse:collapse;'>");
+            // Bảng sản phẩm
+            html.append("<table>");
+            html.append("<thead><tr><th>Sản phẩm</th><th style='text-align:center'>SL</th><th style='text-align:right'>Thành tiền</th></tr></thead>");
+            html.append("<tbody>");
 
             for (OrderDetail detail : order.getOrderDetails()) {
                 String productName = "Sản phẩm";
-
-                if (detail.getProductVariant() != null && detail.getProductVariant().getProduct() != null) {
+                String sku = "";
+                // Null check kỹ càng
+                if(detail.getProductVariant() != null && detail.getProductVariant().getProduct() != null) {
                     productName = detail.getProductVariant().getProduct().getName();
+                    sku = detail.getProductVariant().getVariantName();
                 }
 
+                // Dùng getUnitPrice() chuẩn Entity
                 BigDecimal price = detail.getUnitPrice();
                 BigDecimal quantity = new BigDecimal(detail.getQuantity());
                 BigDecimal lineTotal = price.multiply(quantity);
 
                 html.append("<tr>");
-                html.append("<td style='padding:6px 0;'>" + productName + " (x" + detail.getQuantity() + ")</td>");
-                html.append("<td style='text-align:right; padding:6px 0;'>" + currencyFormat.format(lineTotal) + "</td>");
+                html.append("<td><strong>").append(productName).append("</strong><br><small style='color:#777'>SKU: ").append(sku).append("</small></td>");
+                html.append("<td style='text-align:center'>").append(detail.getQuantity()).append("</td>");
+                html.append("<td style='text-align:right'>").append(currencyFormat.format(lineTotal)).append("</td>");
                 html.append("</tr>");
             }
 
-            html.append("</table>");
+            // Phí vận chuyển
+            html.append("<tr>");
+            html.append("<td colspan='2' style='text-align:right'>Phí vận chuyển:</td>");
+            html.append("<td style='text-align:right'>").append(currencyFormat.format(order.getShippingFee())).append("</td>");
+            html.append("</tr>");
 
-            html.append("<hr style='margin:16px 0;'>");
+            // Tổng tiền - Dùng getTotal() chuẩn Entity
+            html.append("<tr class='total-row'>");
+            html.append("<td colspan='2' style='text-align:right; font-size:16px;'>TỔNG THANH TOÁN:</td>");
+            html.append("<td style='text-align:right; font-size:16px; color:#d63031;'>").append(currencyFormat.format(order.getTotal())).append("</td>");
+            html.append("</tr>");
 
-            // ======================= TOTAL =======================
-            html.append("<p><strong>Tổng cộng:</strong> " + currencyFormat.format(order.getTotal()) + "</p>");
+            html.append("</tbody></table>");
 
-            html.append("<hr style='margin:16px 0;'>");
-
-            // ======================= ADDRESS =======================
-            html.append("<h3>Địa chỉ giao hàng</h3>");
+            // Thông tin giao hàng
+            html.append("<div style='margin-top: 20px; padding: 15px; background-color: #fdfdfd; border: 1px dashed #ccc; border-radius: 5px;'>");
+            html.append("<h4 style='margin-top:0; color:#2E5F6D;'>Thông tin nhận hàng</h4>");
             if (order.getAddress() != null) {
-                String address = (order.getAddress().getAddress() != null) ? order.getAddress().getAddress() : "";
-                String city = (order.getAddress().getCity() != null) ? order.getAddress().getCity() : "";
-
-                html.append("<p>" + address);
-                if (!city.isEmpty()) html.append(", " + city);
-                html.append("</p>");
+                // Dùng getter Address chuẩn
+                html.append("<p style='margin:5px 0;'><strong>Người nhận:</strong> ").append(order.getAddress().getFullName()).append("</p>");
+                html.append("<p style='margin:5px 0;'><strong>SĐT:</strong> ").append(order.getAddress().getPhone()).append("</p>");
+                html.append("<p style='margin:5px 0;'><strong>Địa chỉ:</strong> ")
+                        .append(order.getAddress().getAddress()).append(", ")
+                        .append(order.getAddress().getCity()).append(", ")
+                        .append(order.getAddress().getState())
+                        .append("</p>");
             } else {
-                html.append("<p>(Theo thông tin đã đăng ký)</p>");
+                html.append("<p>Theo thông tin tài khoản mặc định.</p>");
             }
-
-            html.append("<br><p>Cảm ơn bạn đã mua sắm tại <strong>Embro­sia</strong>!</p>");
             html.append("</div>");
 
+            html.append("</div>"); // End content
+
+            // --- FOOTER ---
+            html.append("<div class='footer'>");
+            html.append("<p>Mọi thắc mắc vui lòng liên hệ hotline: <strong>1900 123 456</strong></p>");
+            html.append("<p>&copy; 2025 Embrosia Cosmetic. All rights reserved.</p>");
+            html.append("</div>");
+
+            html.append("</div></body></html>");
+
+            // QUAN TRỌNG: set true để nhận dạng HTML
             helper.setText(html.toString(), true);
 
-            javaMailSender.send(mimeMessage);
-            System.out.println("Đã gửi mail HTML order tới: " + toEmail);
+            javaMailSender.send(message);
+            System.out.println("HTML Email đã gửi thành công tới: " + toEmail);
 
-        } catch (Exception e) {
-            System.err.println("Lỗi gửi mail HTML: " + e.getMessage());
+        } catch (MessagingException e) {
+            System.err.println("Lỗi tạo mail HTML: " + e.getMessage());
         }
     }
 
