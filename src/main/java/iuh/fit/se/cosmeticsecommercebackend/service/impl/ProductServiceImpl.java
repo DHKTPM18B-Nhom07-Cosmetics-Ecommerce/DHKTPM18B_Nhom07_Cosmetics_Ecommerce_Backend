@@ -27,7 +27,10 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public List<Product> getAll() {
-        return repo.findAll();
+        List<Product> products = repo.findAll();
+        // Force initialize variants for totalSold calculation
+        products.forEach(p -> p.getVariants().size());
+        return products;
     }
 
     @Override
@@ -93,7 +96,8 @@ public class ProductServiceImpl implements ProductService {
             Double rating,
             String stocks,
             Boolean active,
-            Pageable pageable
+            Pageable pageable,
+            String sort
     ) {
         Specification<Product> spec = Specification.allOf(
                 active != null ? ProductSpecification.isActive(active) : (root, query, cb) -> cb.conjunction(),
@@ -105,6 +109,13 @@ public class ProductServiceImpl implements ProductService {
                 ProductSpecification.stockStatuses(stocks)
         );
 
-        return repo.findAll(spec, pageable);
+        if ("bestSelling".equals(sort)) {
+            spec = spec.and(ProductSpecification.sortByTotalSold());
+        }
+
+        Page<Product> page = repo.findAll(spec, pageable);
+        // Force initialize variants for totalSold calculation
+        page.getContent().forEach(p -> p.getVariants().size());
+        return page;
     }
 }

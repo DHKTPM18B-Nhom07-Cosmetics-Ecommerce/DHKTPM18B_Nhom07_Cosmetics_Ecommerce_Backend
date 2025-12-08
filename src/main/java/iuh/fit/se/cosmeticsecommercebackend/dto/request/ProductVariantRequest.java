@@ -9,5 +9,6 @@ public class ProductVariantRequest {
     private String variantName;
     private BigDecimal price;
     private Integer quantity;
+    private Integer sold;
     private List<String> imageUrls;
 }

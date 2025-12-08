@@ -29,6 +29,7 @@ public interface ProductService {
                 Double rating,
                 String stocks,
                 Boolean active,
-                Pageable pageable
+                Pageable pageable,
+                String sort
         );
     }

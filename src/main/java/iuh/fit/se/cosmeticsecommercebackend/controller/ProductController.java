@@ -68,6 +68,7 @@ public class ProductController {
                     v.setVariantName(vReq.getVariantName());
                     v.setPrice(vReq.getPrice());
                     v.setQuantity(vReq.getQuantity());
+                    v.setSold(vReq.getSold() != null ? vReq.getSold() : 0);
                     v.setImageUrls(vReq.getImageUrls());
                     v.setProduct(p); // Set relationship immediately
                     return v;
@@ -112,6 +113,7 @@ public class ProductController {
                     v.setVariantName(vReq.getVariantName());
                     v.setPrice(vReq.getPrice());
                     v.setQuantity(vReq.getQuantity());
+                    v.setSold(vReq.getSold() != null ? vReq.getSold() : 0);
                     v.setImageUrls(vReq.getImageUrls());
                     v.setProduct(p); // Set relationship immediately
                     return v;
@@ -156,6 +158,7 @@ public class ProductController {
                     case "priceDesc" -> Sort.by("variants.price").descending();
                     case "az" -> Sort.by("name").ascending();
                     case "za" -> Sort.by("name").descending();
+                    case "bestSelling" -> Sort.unsorted();
                     case "all" -> Sort.unsorted();
                     default -> Sort.by("createdAt").descending();
                 };
@@ -163,7 +166,7 @@ public class ProductController {
                 Pageable pageable = PageRequest.of(page, size, sortConfig);
 
                 var result = service.filterProducts(
-                        search, categories, brands, minPrice, maxPrice, rating, stocks, active, pageable
+                        search, categories, brands, minPrice, maxPrice, rating, stocks, active, pageable, sort
                 );
 
                 // mapping
@@ -208,6 +211,8 @@ public class ProductController {
                     map.put("inStock", inStock);
                     map.put("lowStock", lowStock);
                     map.put("isActive", product.isActive());
+                    map.put("quantity", totalQty); // Ensure quantity is also sum of variants if needed for table
+                    map.put("totalSold", product.getTotalSold());
 
                     return map;
                 }).toList();
