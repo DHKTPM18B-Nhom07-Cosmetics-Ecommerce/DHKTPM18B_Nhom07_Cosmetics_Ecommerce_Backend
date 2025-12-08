@@ -11,6 +11,14 @@ public class ProductVariantRequest {
     private Integer sold;
     private List<String> imageUrls;
 
+    public Integer getSold() {
+        return sold;
+    }
+
+    public void setSold(Integer sold) {
+        this.sold = sold;
+    }
+
     public String getVariantName() {
         return variantName;
     }
