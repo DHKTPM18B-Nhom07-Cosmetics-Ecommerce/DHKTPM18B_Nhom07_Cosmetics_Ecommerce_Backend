@@ -186,10 +186,19 @@ public class OrderController {
     public ResponseEntity<Order> updateOrderStatus(
             @PathVariable String id,
             @RequestParam OrderStatus newStatus,
-            @RequestParam(required = false) Long employeeId,
-            @RequestParam(required = false) String cancelReason
+            @RequestParam(required = false) String cancelReason,
+            Principal principal // SỬ DỤNG PRINCIPAL THAY VÌ EMPLOYEE_ID
     ) {
-        Employee employee = getEmployeeOrNull(employeeId);
+        if (principal == null) {
+            return new ResponseEntity<>(null, HttpStatus.UNAUTHORIZED);
+        }
+        String username = principal.getName();
+
+        // 1. TÌM OBJECT EMPLOYEE DỰA TRÊN USERNAME
+        Employee employee = employeeService.findByAccountUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin Employee cho tài khoản: " + username));
+
+        // 2. GỌI SERVICE
         Order updatedOrder = orderService.updateStatus(id, newStatus, cancelReason, employee);
         return ResponseEntity.ok(updatedOrder);
     }
@@ -220,10 +229,16 @@ public class OrderController {
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public ResponseEntity<Order> requestReturn(
             @PathVariable String id,
-            @RequestParam Long employeeId,
-            @RequestParam(required = false) String reason
+            @RequestParam(required = false) String reason,
+            Principal principal // Sử dụng Principal
     ) {
-        Employee employee = getEmployeeOrNull(employeeId);
+        if (principal == null) {
+            return new ResponseEntity<>(null, HttpStatus.UNAUTHORIZED);
+        }
+        String username = principal.getName();
+        Employee employee = employeeService.findByAccountUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin Employee."));
+
         Order returnedOrder = orderService.requestReturn(id, reason, employee);
         return ResponseEntity.ok(returnedOrder);
     }
@@ -233,9 +248,15 @@ public class OrderController {
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
     public ResponseEntity<Order> processRefund(
             @PathVariable String id,
-            @RequestParam Long employeeId
+            Principal principal // Sử dụng Principal
     ) {
-        Employee employee = getEmployeeOrNull(employeeId);
+        if (principal == null) {
+            return new ResponseEntity<>(null, HttpStatus.UNAUTHORIZED);
+        }
+        String username = principal.getName();
+        Employee employee = employeeService.findByAccountUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin Employee."));
+
         Order refundedOrder = orderService.processRefund(id, employee);
         return ResponseEntity.ok(refundedOrder);
     }
