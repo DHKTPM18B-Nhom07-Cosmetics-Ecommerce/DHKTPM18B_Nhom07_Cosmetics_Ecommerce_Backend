@@ -60,7 +60,6 @@ public class AddressController {
         // Lấy Account ID mà frontend gửi lên
         Long accountId = ((Number) body.get("customerId")).longValue();
 
-        // --- SỬA LẠI DÒNG NÀY ---
         // Dùng findByAccount_Id để tìm ra đúng Customer
         Customer customer = customerRepository.findByAccount_Id(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy khách hàng sở hữu Account ID: " + accountId));
@@ -68,6 +67,7 @@ public class AddressController {
 
         Address address = new Address();
         address.setCustomer(customer); // Gán customer tìm được vào địa chỉ
+        address.setId(Address.generateAddressId());
         address.setFullName((String) body.get("fullName"));
         address.setPhone((String) body.get("phone"));
         address.setAddress((String) body.get("address"));

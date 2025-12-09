@@ -17,7 +17,6 @@ import java.util.UUID;
 public class Address {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "address_id")
     private Long id;
 
@@ -133,3 +132,4 @@ public class Address {
         return Math.abs(UUID.randomUUID().getMostSignificantBits());}
 
 }
+

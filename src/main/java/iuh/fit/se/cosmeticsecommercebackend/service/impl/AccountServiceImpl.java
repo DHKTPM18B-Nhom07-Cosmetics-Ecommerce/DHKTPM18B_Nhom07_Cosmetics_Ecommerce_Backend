@@ -38,8 +38,7 @@ public class AccountServiceImpl implements AccountService {
     private iuh.fit.se.cosmeticsecommercebackend.repository.CustomerRepository customerRepository;
 
 
-    // [CONSTRUCTOR CŨ CỦA NHÓM - GIỮ NGUYÊN Y XÌ]
-    // Bạn tuyệt đối không thêm tham số nào vào đây nhé
+    // [CONSTRUCTOR CŨ CỦA NHÓM ]
     public AccountServiceImpl(AccountRepository accountRepository) {
         this.accountRepository = accountRepository;
     }
@@ -65,26 +64,35 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
+    @Transactional
     public Account updateAccount(Long id, Account accountDetails) {
-        Account existingAccount = accountRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy Account với id: " + id));
-
-       // existingAccount.setUsername(accountDetails.getUsername());
+        Account existing = accountRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Account not found with id: " + id));
+        if (accountDetails.getUsername() != null) {
+            existing.setUsername(accountDetails.getUsername());
+        }
         if (accountDetails.getFullName() != null) {
-            existingAccount.setFullName(accountDetails.getFullName());
+            existing.setFullName(accountDetails.getFullName());
+        }
+        if (accountDetails.getFullName() != null) {
+            existing.setFullName(accountDetails.getFullName());
         }
         if (accountDetails.getPhoneNumber() != null) {
-            existingAccount.setPhoneNumber(accountDetails.getPhoneNumber());
+            existing.setPhoneNumber(accountDetails.getPhoneNumber());
         }
-//        existingAccount.setStatus(accountDetails.getStatus());
-//        existingAccount.setRole(accountDetails.getRole());
-//        existingAccount.setDisabledReason(accountDetails.getDisabledReason());
-
+        if (accountDetails.getStatus() != null) {
+            existing.setStatus(accountDetails.getStatus());
+        }
+        if(accountDetails.getRole() != null) {
+            existing.setRole(accountDetails.getRole());
+        }
+        if (accountDetails.getDisabledReason() != null) {
+            existing.setDisabledReason(accountDetails.getDisabledReason());
+        }
         if (accountDetails.getPassword() != null && !accountDetails.getPassword().isEmpty()) {
-            existingAccount.setPassword(accountDetails.getPassword());
+            existing.setPassword(accountDetails.getPassword());
         }
-
-        return accountRepository.save(existingAccount);
+        return accountRepository.save(existing);
     }
 
     @Override

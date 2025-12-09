@@ -50,7 +50,11 @@ public class AddressServiceImpl implements AddressService {
 
         // Đảm bảo chỉ có 1 địa chỉ mặc định cho mỗi customer:
         if (updatedAddress.isDefault()) {
-            unsetOtherDefaultAddresses(existing.getCustomer().getId(), existing.getId());
+            // Use repository bulk update to clear other defaults for this customer
+            Long customerId = existing.getCustomer() != null ? existing.getCustomer().getId() : null;
+            if (customerId != null) {
+                addressRepository.unsetDefaultForCustomerExcept(customerId, existing.getId());
+            }
         }
 
         // Lưu lại thay đổi
@@ -61,11 +65,9 @@ public class AddressServiceImpl implements AddressService {
      * Hủy trạng thái mặc định của các địa chỉ khác cùng customer
      */
     private void unsetOtherDefaultAddresses(Long customerId, Long excludeAddressId) {
-        if (customerId == null) return; // guest thì bỏ qua
-
-        // Logic tìm kiếm tối ưu
+        // Deprecated - kept for compatibility, prefer repository.bulk updates.
+        if (customerId == null) return;
         List<Address> customerAddresses = addressRepository.findByCustomerId(customerId);
-
         customerAddresses.stream()
                 .filter(addr -> !addr.getId().equals(excludeAddressId) && addr.isDefault())
                 .forEach(addr -> {
@@ -87,7 +89,7 @@ public class AddressServiceImpl implements AddressService {
 
     @Override
     public Address getDefaultAddressByCustomerId(Long id) {
-        return addressRepository.findByCustomerIdAndIsDefaultTrue(id)
+        return addressRepository.findDefaultByCustomerId(id)
                 .orElse(null);
     }
 }

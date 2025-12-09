@@ -17,7 +17,6 @@ public class Voucher {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "voucher_id")
     private Long id;
 
     @Column(nullable = false, unique = true, length = 64)
