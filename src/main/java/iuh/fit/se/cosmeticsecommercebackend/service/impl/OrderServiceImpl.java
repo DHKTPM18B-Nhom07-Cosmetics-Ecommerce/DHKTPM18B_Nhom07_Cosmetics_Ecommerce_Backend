@@ -196,6 +196,32 @@ public class OrderServiceImpl implements OrderService {
             res.setTotalAmount(saved.getTotal());
             return res;
         }
+        /* ---------- CHECK GIỚI HẠN SỬ DỤNG VOUCHER ---------- */
+        for (Voucher v : vouchers) {
+
+            //. maxUses – tổng lượt dùng
+            if (v.getMaxUses() != null) {
+                long used = voucherRedemptionService.countByVoucher(v);
+                if (used >= v.getMaxUses()) {
+                    throw new IllegalStateException(
+                            "Voucher " + v.getCode() + " đã hết lượt sử dụng"
+                    );
+                }
+            }
+
+            // perUserLimit – mỗi user
+            if (customer != null && v.getPerUserLimit() != null) {
+                long usedByUser =
+                        voucherRedemptionService.countByVoucherAndCustomer(v, customer);
+
+                if (usedByUser >= v.getPerUserLimit()) {
+                    throw new IllegalStateException(
+                            "Bạn đã dùng hết lượt voucher " + v.getCode()
+                    );
+                }
+            }
+        }
+
 
         /* ---------- ÁP VOUCHER THẬT SỰ ---------- */
         DiscountResult discountResult = voucherEngine.apply(saved, vouchers);
@@ -242,23 +268,17 @@ public class OrderServiceImpl implements OrderService {
         /* ================= SAVE VOUCHER REDEMPTION ================= */
         for (Voucher v : vouchers) {
 
-            BigDecimal totalDiscountForThisVoucher =
-                    discountResult.getOrderDiscount()
-                            .add(discountResult.getShippingDiscount());
-
-            if (totalDiscountForThisVoucher.compareTo(BigDecimal.ZERO) <= 0) {
-                continue; // không giảm thì không lưu
-            }
-
             VoucherRedemption vr = new VoucherRedemption();
             vr.setVoucher(v);
             vr.setOrder(saved);
             vr.setCustomer(customer); // null nếu guest
-            vr.setAmountDiscounted(totalDiscountForThisVoucher);
+
+            // VoucherRedemption chỉ dùng để ghi nhận lượt sử dụng
+            // Không tính tiền
+            vr.setAmountDiscounted(BigDecimal.ZERO);
 
             voucherRedemptionService.create(vr);
         }
-
 
 
         /* ---------- RESPONSE ---------- */

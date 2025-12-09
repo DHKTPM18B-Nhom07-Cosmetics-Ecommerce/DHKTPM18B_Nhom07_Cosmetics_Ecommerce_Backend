@@ -1,5 +1,7 @@
 package iuh.fit.se.cosmeticsecommercebackend.service.impl;
 
+import iuh.fit.se.cosmeticsecommercebackend.model.Customer;
+import iuh.fit.se.cosmeticsecommercebackend.model.Voucher;
 import iuh.fit.se.cosmeticsecommercebackend.model.VoucherRedemption;
 import iuh.fit.se.cosmeticsecommercebackend.repository.VoucherRedemptionRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.VoucherRedemptionService;
@@ -47,5 +49,15 @@ public class VoucherRedemptionServiceImpl implements VoucherRedemptionService {
     @Override
     public void delete(Long id) {
         repo.deleteById(id);
+    }
+
+    @Override
+    public long countByVoucher(Voucher voucher) {
+        return repo.countByVoucher(voucher);
+    }
+
+    @Override
+    public long countByVoucherAndCustomer(Voucher voucher, Customer customer) {
+        return repo.countByVoucherAndCustomer(voucher, customer);
     }
 }
