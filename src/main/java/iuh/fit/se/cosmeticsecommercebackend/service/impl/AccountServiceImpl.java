@@ -69,12 +69,16 @@ public class AccountServiceImpl implements AccountService {
         Account existingAccount = accountRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy Account với id: " + id));
 
-        existingAccount.setUsername(accountDetails.getUsername());
-        existingAccount.setFullName(accountDetails.getFullName());
-        existingAccount.setPhoneNumber(accountDetails.getPhoneNumber());
-        existingAccount.setStatus(accountDetails.getStatus());
-        existingAccount.setRole(accountDetails.getRole());
-        existingAccount.setDisabledReason(accountDetails.getDisabledReason());
+       // existingAccount.setUsername(accountDetails.getUsername());
+        if (accountDetails.getFullName() != null) {
+            existingAccount.setFullName(accountDetails.getFullName());
+        }
+        if (accountDetails.getPhoneNumber() != null) {
+            existingAccount.setPhoneNumber(accountDetails.getPhoneNumber());
+        }
+//        existingAccount.setStatus(accountDetails.getStatus());
+//        existingAccount.setRole(accountDetails.getRole());
+//        existingAccount.setDisabledReason(accountDetails.getDisabledReason());
 
         if (accountDetails.getPassword() != null && !accountDetails.getPassword().isEmpty()) {
             existingAccount.setPassword(accountDetails.getPassword());
