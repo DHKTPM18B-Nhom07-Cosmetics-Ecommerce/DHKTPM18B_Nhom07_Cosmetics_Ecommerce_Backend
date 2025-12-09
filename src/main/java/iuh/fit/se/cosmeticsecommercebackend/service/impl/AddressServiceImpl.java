@@ -5,10 +5,12 @@ import iuh.fit.se.cosmeticsecommercebackend.repository.AddressRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.AddressService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional
 public class AddressServiceImpl implements AddressService {
     private final AddressRepository addressRepository;
 
@@ -59,15 +61,13 @@ public class AddressServiceImpl implements AddressService {
      * Hủy trạng thái mặc định của các địa chỉ khác cùng customer
      */
     private void unsetOtherDefaultAddresses(Long customerId, Long excludeAddressId) {
-
         if (customerId == null) return; // guest thì bỏ qua
 
-        addressRepository.findByCustomerId(customerId)
-                .stream()
-                .filter(addr ->
-                        !addr.getId().equals(excludeAddressId)
-                                && addr.isDefault()
-                )
+        // Logic tìm kiếm tối ưu
+        List<Address> customerAddresses = addressRepository.findByCustomerId(customerId);
+
+        customerAddresses.stream()
+                .filter(addr -> !addr.getId().equals(excludeAddressId) && addr.isDefault())
                 .forEach(addr -> {
                     addr.setDefault(false);
                     addressRepository.save(addr);

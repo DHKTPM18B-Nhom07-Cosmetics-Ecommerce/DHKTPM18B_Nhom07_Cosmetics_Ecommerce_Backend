@@ -1,5 +1,6 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
@@ -16,6 +17,7 @@ import java.util.UUID;
 public class Address {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "address_id")
     private Long id;
 
@@ -26,6 +28,7 @@ public class Address {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = true)
     @JsonBackReference
+    @JsonIgnore
     private Customer customer;
 
     @Column(nullable = true, length = 100)
