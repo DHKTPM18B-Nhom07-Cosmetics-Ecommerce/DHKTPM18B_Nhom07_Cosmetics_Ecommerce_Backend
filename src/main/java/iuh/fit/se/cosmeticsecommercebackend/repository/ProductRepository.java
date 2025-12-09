@@ -21,4 +21,7 @@ WHERE v.id = :variantId
     // Tim theo trang thai active 
     List<Product> findByIsActive(boolean isActive);
 
+    @Query("SELECT COUNT(p) FROM Product p WHERE p.category.id = :categoryId")
+    long countByCategoryId(@Param("categoryId") Long categoryId);
+
 }
