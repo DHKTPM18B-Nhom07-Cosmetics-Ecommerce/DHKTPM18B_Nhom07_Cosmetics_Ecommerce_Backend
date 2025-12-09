@@ -11,4 +11,7 @@ public interface CustomerService {
     public Customer create(Customer customer);
     public Customer update(Long id, Customer customer);
     public void delete(Long id);
+
+    Customer findByAccountUsername(String username);
+    Customer findByAccountId(Long accountId);
 }

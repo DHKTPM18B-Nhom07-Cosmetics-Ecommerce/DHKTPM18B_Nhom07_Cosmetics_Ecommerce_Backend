@@ -92,6 +92,8 @@ public class SecurityConfig {
 
                 // CHO PHÉP TẤT CẢ TRONG LÚC DEV (sau này sửa lại)
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/orders/admin/**").permitAll()
+                        .requestMatchers("/api/orders", "/api/orders/**", "/api/addresses/**" ).permitAll()
                         .anyRequest().permitAll()
                 )
                 .csrf(AbstractHttpConfigurer::disable)

@@ -6,18 +6,12 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
-/**
- * Entity đại diện cho sản phẩm
- * Quan hệ n-1 với Category và Brand
- * Quan hệ 1-n với ProductVariant và Review
- */
 @Entity
 @Table(name = "products")
-@ToString(exclude = {"variants", "reviews"})
-@EqualsAndHashCode(exclude = {"variants", "reviews"})
+@ToString(exclude = {"variants", "reviews", "vouchers", "category", "brand"})
+@EqualsAndHashCode(exclude = {"variants", "reviews", "vouchers", "category", "brand"})
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Product {
 
@@ -26,7 +20,7 @@ public class Product {
     @Column(name = "product_id")
     private Long id;
 
-    @Column(length = 200)
+    @Column(nullable = false, length = 200)
     private String name;
 
     @Column(columnDefinition = "TEXT")
@@ -40,44 +34,35 @@ public class Product {
     @Column(name = "image_url", length = 500)
     private List<String> images = new ArrayList<>();
 
-
-    /**
-     * Quan hệ n-1 với Category
-     * Nhiều Product thuộc về 1 Category
-     */
+    /* ================= CATEGORY (MANY-TO-ONE) ================= */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
-    @JsonIgnore
+    // Ngăn chặn vòng lặp vô hạn bằng cách bỏ qua danh sách products trong Category
+    @JsonIgnoreProperties("products")
     private Category category;
 
-    /**
-     * Quan hệ n-1 với Brand
-     * Nhiều Product thuộc về 1 Brand
-     */
+    /* ================= BRAND (MANY-TO-ONE) ================= */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "brand_id", nullable = false)
-    @JsonIgnore
+    // Ngăn chặn vòng lặp vô hạn bằng cách bỏ qua danh sách products trong Brand
+    @JsonIgnoreProperties("products")
     private Brand brand;
 
-    /**
-     * Quan hệ 1-n với ProductVariant
-     * 1 Product có nhiều ProductVariant (biến thể sản phẩm)
-     * mappedBy = "product" tham chiếu đến thuộc tính product trong ProductVariant entity
-     */
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonIgnore
-    @JsonIgnoreProperties({"product"})
-
+    /* ================= VARIANTS (ONE-TO-MANY) ================= */
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL,
+            orphanRemoval = true, fetch = FetchType.LAZY)
+    // Ngăn chặn vòng lặp vô hạn bằng cách bỏ qua field product trong ProductVariant
+    // @JsonIgnoreProperties({"product", "orderDetails", "cartItems"}) nên được cân nhắc nếu cần
+    @JsonIgnoreProperties("product")
     private List<ProductVariant> variants = new ArrayList<>();
 
-    /**
-     * Quan hệ 1-n với Review
-     * 1 Product có nhiều Review (đánh giá)
-     * mappedBy = "product" tham chiếu đến thuộc tính product trong Review entity
-     */
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonIgnore
+    /* ================= REVIEWS (ONE-TO-MANY) ================= */
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL,
+            orphanRemoval = true, fetch = FetchType.LAZY)
+    // Ngăn chặn vòng lặp vô hạn bằng cách bỏ qua field product trong Review
+    @JsonIgnoreProperties("product")
     private List<Review> reviews = new ArrayList<>();
+
 
     @Column(name = "average_rating")
     private double averageRating = 0.0;
@@ -88,7 +73,7 @@ public class Product {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
-//    thêm field
+    /* ================= TRANSIENT FIELDS ================= */
     @Transient
     private Integer minPrice;
 
@@ -98,25 +83,37 @@ public class Product {
     @Transient
     private Boolean inStock;
 
-    // Gán giá trị tự động khi entity được lưu lần đầu
+    @Transient
+    private Integer totalSold;
+
+    public Integer getTotalSold() {
+        if (variants == null) return 0;
+        return variants.stream()
+                .mapToInt(v -> v.getSold() == null ? 0 : v.getSold())
+                .sum();
+    }
+
+    public void setTotalSold(Integer totalSold) {
+        this.totalSold = totalSold;
+    }
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
     }
-    /**
-     * Helper method để tính toán lại averageRating
-     * Được gọi sau khi thêm/xóa/cập nhật review
-     */
-//    public void calculateAverageRating() {
-//        if (reviews.isEmpty()) {
-//            this.averageRating = 0.0;
-//        } else {
-//            double sum = reviews.stream()
-//                    .mapToDouble(Review::getRating)
-//                    .sum();
-//            this.averageRating = sum / reviews.size();
-//        }
-//    }
+
+    /* ================= VOUCHERS (MANY-TO-MANY) ================= */
+    @ManyToMany
+    @JoinTable(
+            name = "voucher_products",
+            joinColumns = @JoinColumn(name = "product_id"),
+            inverseJoinColumns = @JoinColumn(name = "voucher_id")
+    )
+    @JsonIgnoreProperties({"products", "categories", "brands"})
+    private Set<Voucher> vouchers = new HashSet<>();
+
+
+    /* ================= GETTERS / SETTERS ================= */
 
     public Long getId() {
         return id;
@@ -149,7 +146,6 @@ public class Product {
     public void setImages(List<String> images) {
         this.images = images;
     }
-
 
     public Category getCategory() {
         return category;
@@ -229,5 +225,13 @@ public class Product {
 
     public void setInStock(Boolean inStock) {
         this.inStock = inStock;
+    }
+
+    public Set<Voucher> getVouchers() {
+        return vouchers;
+    }
+
+    public void setVouchers(Set<Voucher> vouchers) {
+        this.vouchers = vouchers;
     }
 }

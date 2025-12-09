@@ -13,4 +13,5 @@ public interface CartService {
     void delete(Long id);
     Cart addToCart(Long accountId, Long variantId, int quantity);
     Cart getCartByAccountId(Long accountId);
+    void removeItemsFromCart(Long customerId, List<Long> productVariantIds);
 }

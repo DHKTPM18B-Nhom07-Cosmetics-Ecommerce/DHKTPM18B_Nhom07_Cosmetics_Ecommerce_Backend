@@ -38,6 +38,9 @@ public class ProductVariant {
     @Column(nullable = false)
     private Integer quantity;
 
+    @Column(nullable = false)
+    private Integer sold = 0;
+
     @ElementCollection
     @CollectionTable(
             name = "product_variant_images",
@@ -54,7 +57,7 @@ public class ProductVariant {
     //@JsonIgnore
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "product_id", nullable = false)
-    @JsonIgnore
+   // @JsonIgnore
     private Product product;
 
     /**
@@ -108,6 +111,14 @@ public class ProductVariant {
 
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
+    }
+
+    public Integer getSold() {
+        return sold;
+    }
+
+    public void setSold(Integer sold) {
+        this.sold = sold;
     }
 
     public List<String> getImageUrls() {

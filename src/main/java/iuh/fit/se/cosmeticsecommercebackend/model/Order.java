@@ -3,6 +3,7 @@ package iuh.fit.se.cosmeticsecommercebackend.model;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -24,14 +25,25 @@ import java.util.List;
                         @NamedAttributeNode("customer"),
                         @NamedAttributeNode("employee"),
                         @NamedAttributeNode("address"),
+                        // Khai báo subgraph cho orderDetails
                         @NamedAttributeNode(value = "orderDetails", subgraph = "order-detail-subgraph"),
                         @NamedAttributeNode("voucherRedemptions")
                 },
                 subgraphs = {
+                        // Subgraph cho OrderDetail: tải ProductVariant
                         @NamedSubgraph(
                                 name = "order-detail-subgraph",
                                 attributeNodes = {
-                                        @NamedAttributeNode("productVariant") // Tải ProductVariant trong OrderDetail
+                                        // Tải ProductVariant trong OrderDetail
+                                        @NamedAttributeNode(value = "productVariant", subgraph = "product-variant-subgraph")
+                                }
+                        ),
+                        // Subgraph MỚI cho ProductVariant: tải Product và ProductVariantImages
+                        @NamedSubgraph(
+                                name = "product-variant-subgraph",
+                                attributeNodes = {
+                                        @NamedAttributeNode("product"), // Tải Product (chứa tên sản phẩm)
+                                        @NamedAttributeNode("imageUrls") // Tải ProductVariantImages (chứa ảnh variant)
                                 }
                         )
                 }
@@ -42,21 +54,19 @@ import java.util.List;
 @ToString(exclude = {"customer", "employee", "orderDetails", "reviews"})
 @EqualsAndHashCode(exclude = {"customer", "employee", "orderDetails", "reviews"})
 public class Order {
-    
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "order_id")
-    private Long id;
-    
+    @Column(name = "order_id", length = 20)
+    private String id;
     /**
      * Quan hệ n-1 với Customer
      * Nhiều Order thuộc về 1 Customer
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id", nullable = false)
-    @JsonManagedReference("order-customer")
+    @JoinColumn(name = "customer_id", nullable = true)
+    @JsonIgnoreProperties({"addresses", "orders", "cart", "reviews", "customerVouchers", "voucherRedemptions", "wishList"})
     private Customer customer;
-    
+
     /**
      * Quan hệ n-1 với Employee
      * Nhiều Order được xử lý bởi 1 Employee
@@ -69,25 +79,37 @@ public class Order {
      * Nhiều Order có thể cùng 1 Address
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "address_id", nullable = false)
+    @JoinColumn(name = "address_id", nullable = true)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"customer"})
     private Address address;
-    
+
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal total;
-    
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private OrderStatus status = OrderStatus.PENDING;
-    
+
     @Column(length = 500)
     private String cancelReason;
-    
+
     private LocalDateTime canceledAt;
-    
+
     @Column(nullable = false)
     private LocalDateTime orderDate=LocalDateTime.now();
     @Column(name = "shipping_fee", nullable = false, precision = 10, scale = 2)
     private BigDecimal shippingFee = new BigDecimal("30000.00");
+
+    // THÊM — lưu số điện thoại của guest để gắn đơn sau khi đăng ký
+    @Column(name = "guest_phone", length = 20)
+    private String guestPhone;
+
+    // sửa NEW
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal subtotal = BigDecimal.ZERO;
+
+    @Column(name = "discount_amount", nullable = false, precision = 12, scale = 2)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
 
     /**
      * Quan hệ 1-n với OrderDetail
@@ -98,13 +120,13 @@ public class Order {
     private List<OrderDetail> orderDetails = new ArrayList<>();
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-  @JsonIgnore
+    @JsonIgnore
     private List<VoucherRedemption> voucherRedemptions = new ArrayList<>();
 
     public Order() {
     }
 
-    public Order(Long id, Customer customer, Employee employee, Address address, BigDecimal total, OrderStatus status, String cancelReason, LocalDateTime canceledAt, LocalDateTime orderDate, BigDecimal shippingFee, List<OrderDetail> orderDetails, List<VoucherRedemption> voucherRedemptions) {
+    public Order(String id, Customer customer, Employee employee, Address address, BigDecimal total, OrderStatus status, String cancelReason, LocalDateTime canceledAt, LocalDateTime orderDate, BigDecimal shippingFee, List<OrderDetail> orderDetails, List<VoucherRedemption> voucherRedemptions) {
         this.id = id;
         this.customer = customer;
         this.employee = employee;
@@ -119,7 +141,7 @@ public class Order {
         this.voucherRedemptions = voucherRedemptions;
     }
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
@@ -167,7 +189,7 @@ public class Order {
         return voucherRedemptions;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -214,5 +236,29 @@ public class Order {
     public void setVoucherRedemptions(List<VoucherRedemption> voucherRedemptions) {
         this.voucherRedemptions = voucherRedemptions;
     }
-}
 
+    public String getGuestPhone() {
+        return guestPhone;
+    }
+
+    public void setGuestPhone(String guestPhone) {
+        this.guestPhone = guestPhone;
+    }
+
+//    NEW
+    public BigDecimal getSubtotal() {
+        return subtotal;
+    }
+//NEW
+    public void setSubtotal(BigDecimal subtotal) {
+        this.subtotal = subtotal;
+    }
+
+    public BigDecimal getDiscountAmount() {
+        return discountAmount;
+    }
+
+    public void setDiscountAmount(BigDecimal discountAmount) {
+        this.discountAmount = discountAmount;
+    }
+}

@@ -61,6 +61,9 @@ public class AddressServiceImpl implements AddressService {
      * Hủy trạng thái mặc định của các địa chỉ khác cùng customer
      */
     private void unsetOtherDefaultAddresses(Long customerId, Long excludeAddressId) {
+        if (customerId == null) return; // guest thì bỏ qua
+
+        // Logic tìm kiếm tối ưu
         List<Address> customerAddresses = addressRepository.findByCustomerId(customerId);
 
         customerAddresses.stream()
@@ -70,6 +73,7 @@ public class AddressServiceImpl implements AddressService {
                     addressRepository.save(addr);
                 });
     }
+
 
     @Override
     public void delete(Long id) {

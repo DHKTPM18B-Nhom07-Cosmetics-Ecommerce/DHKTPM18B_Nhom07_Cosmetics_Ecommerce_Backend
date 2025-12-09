@@ -149,4 +149,47 @@ public class CartServiceImpl implements CartService {
         }
         cart.setTotalPrice(total);
     }
+
+    // ==================================================
+    // Xóa các CartItem khỏi giỏ hàng theo danh sách variant IDs
+    // ==================================================
+    @Override
+    @Transactional
+    public void removeItemsFromCart(Long customerId, List<Long> productVariantIds) {
+        if (customerId == null || productVariantIds == null || productVariantIds.isEmpty()) {
+            return; // nothing to remove
+        }
+
+        // Tìm giỏ hàng của customer
+        Optional<Cart> cartOpt = cartRepository.findByCustomer_Id(customerId);
+        if (cartOpt.isEmpty()) {
+            return; // no cart found, nothing to do
+        }
+
+        Cart cart = cartOpt.get();
+
+        // Lấy các CartItem cần xóa
+        List<CartItem> itemsToRemove = cart.getItems().stream()
+                .filter(item -> item.getProductVariant() != null && productVariantIds.contains(item.getProductVariant().getId()))
+                .toList();
+
+        if (itemsToRemove.isEmpty()) {
+            return; // nothing to remove
+        }
+
+        // Xóa từng CartItem cả ở quan hệ và repository
+        for (CartItem item : itemsToRemove) {
+            cart.getItems().remove(item);
+            try {
+                cartItemRepository.delete(item);
+            } catch (Exception e) {
+                // Log and continue
+                System.err.println("Failed to delete cart item id=" + item.getId() + ": " + e.getMessage());
+            }
+        }
+
+        // Cập nhật tổng tiền
+        updateCartTotal(cart);
+        cartRepository.save(cart);
+    }
 }

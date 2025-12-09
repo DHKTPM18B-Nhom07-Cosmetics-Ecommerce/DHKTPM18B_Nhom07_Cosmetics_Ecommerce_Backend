@@ -1,6 +1,7 @@
 package iuh.fit.se.cosmeticsecommercebackend.service;
 
 import iuh.fit.se.cosmeticsecommercebackend.model.Account;
+import iuh.fit.se.cosmeticsecommercebackend.model.Customer;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -21,5 +22,7 @@ public interface AccountService {
             String search,
             Pageable pageable
     );
+
+    Customer findCustomerByAccountId(Long accountId);
 
 }

@@ -24,7 +24,6 @@ public class CartItemServiceImpl implements CartItemService {
         this.cartRepository = cartRepository;
     }
 
-
     @Override
     public List<CartItem> getAllCartItems() {
         return cartItemRepository.findAll();
@@ -93,6 +92,11 @@ public class CartItemServiceImpl implements CartItemService {
         // Cách đơn giản nhất ở đây là:
         cart.getItems().remove(item); // Xóa khỏi list trong bộ nhớ
         updateCartTotal(cart);
+    }
+
+    @Override
+    public void deleteCartItemById(Long id) {
+        cartItemRepository.deleteById(id);
     }
 
     // Hàm phụ để tính tổng tiền và lưu giỏ hàng

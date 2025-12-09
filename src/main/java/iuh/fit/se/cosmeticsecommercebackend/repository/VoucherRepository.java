@@ -16,4 +16,8 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
     Optional<Voucher> findById(Long id);
 
     Optional<Voucher> findByCode(String code);
+
+    //thêm cho apply voucher - test
+    Optional<Voucher> findByCodeIgnoreCase(String code);
+
 }

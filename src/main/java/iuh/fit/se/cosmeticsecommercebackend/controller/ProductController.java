@@ -1,6 +1,10 @@
 package iuh.fit.se.cosmeticsecommercebackend.controller;
 
+import iuh.fit.se.cosmeticsecommercebackend.dto.request.ProductRequest;
+import iuh.fit.se.cosmeticsecommercebackend.model.Brand;
+import iuh.fit.se.cosmeticsecommercebackend.model.Category;
 import iuh.fit.se.cosmeticsecommercebackend.model.Product;
+import iuh.fit.se.cosmeticsecommercebackend.model.ProductVariant;
 import iuh.fit.se.cosmeticsecommercebackend.service.ProductService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -8,41 +12,120 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.*;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/products")
 @CrossOrigin("*")
-        public class ProductController {
+public class ProductController {
 
-            private final ProductService service;
+    private final ProductService service;
 
-            public ProductController(ProductService service) {
-                this.service = service;
+    public ProductController(ProductService service) {
+        this.service = service;
+    }
+
+    @GetMapping
+    public ResponseEntity<?> getAll() {
+        return ResponseEntity.ok(service.getAll());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(service.getById(id));
+    }
+
+    @PostMapping
+    public ResponseEntity<?> create(@RequestBody ProductRequest request) {
+        try {
+            // Manual Mapping DTO -> Entity
+            Product p = new Product();
+            p.setName(request.getName());
+            p.setDescription(request.getDescription());
+            p.setImages(request.getImages());
+            if (request.getActive() != null) {
+                p.setActive(request.getActive());
+            }
+            
+            if (request.getCategoryId() != null) {
+                Category c = new Category();
+                c.setId(request.getCategoryId());
+                p.setCategory(c);
+            }
+            
+            if (request.getBrandId() != null) {
+                Brand b = new Brand();
+                b.setId(request.getBrandId());
+                p.setBrand(b);
+            }
+            
+            if (request.getVariants() != null) {
+                List<ProductVariant> variantEntities = request.getVariants().stream().map(vReq -> {
+                    ProductVariant v = new ProductVariant();
+                    v.setVariantName(vReq.getVariantName());
+                    v.setPrice(vReq.getPrice());
+                    v.setQuantity(vReq.getQuantity());
+                    v.setSold(vReq.getSold() != null ? vReq.getSold() : 0);
+                    v.setImageUrls(vReq.getImageUrls());
+                    v.setProduct(p); // Set relationship immediately
+                    return v;
+                }).collect(Collectors.toList());
+                p.setVariants(variantEntities);
             }
 
-            @GetMapping
-            public ResponseEntity<?> getAll() {
-                return ResponseEntity.ok(service.getAll());
+            return ResponseEntity.ok(service.create(p));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating product: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody ProductRequest request) {
+        try {
+            // Manual Mapping DTO -> Entity
+            Product p = new Product();
+            p.setName(request.getName());
+            p.setDescription(request.getDescription());
+            p.setImages(request.getImages());
+            if (request.getActive() != null) {
+                p.setActive(request.getActive());
+            }
+            
+            if (request.getCategoryId() != null) {
+                Category c = new Category();
+                c.setId(request.getCategoryId());
+                p.setCategory(c);
+            }
+            
+            if (request.getBrandId() != null) {
+                Brand b = new Brand();
+                b.setId(request.getBrandId());
+                p.setBrand(b);
+            }
+            
+            if (request.getVariants() != null) {
+                List<ProductVariant> variantEntities = request.getVariants().stream().map(vReq -> {
+                    ProductVariant v = new ProductVariant();
+                    v.setVariantName(vReq.getVariantName());
+                    v.setPrice(vReq.getPrice());
+                    v.setQuantity(vReq.getQuantity());
+                    v.setSold(vReq.getSold() != null ? vReq.getSold() : 0);
+                    v.setImageUrls(vReq.getImageUrls());
+                    v.setProduct(p); // Set relationship immediately
+                    return v;
+                }).collect(Collectors.toList());
+                p.setVariants(variantEntities);
             }
 
-            @GetMapping("/{id}")
-            public ResponseEntity<?> getById(@PathVariable Long id) {
-                return ResponseEntity.ok(service.getById(id));
-            }
-
-            @PostMapping
-            public ResponseEntity<?> create(@RequestBody Product p) {
-                return ResponseEntity.ok(service.create(p));
-            }
-
-            @PutMapping("/{id}")
-            public ResponseEntity<?> update(@PathVariable Long id, @RequestBody Product p) {
-                return ResponseEntity.ok(service.update(id, p));
+            return ResponseEntity.ok(service.update(id, p));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating product: " + e.getMessage());
+                }
             }
 
             @DeleteMapping("/{id}")
@@ -63,6 +146,7 @@ import java.util.List;
                     @RequestParam(required = false) Long minPrice,
                     @RequestParam(required = false) Long maxPrice,
                     @RequestParam(required = false) Double rating,
+                    @RequestParam(required = false) Boolean active,
                     @RequestParam(defaultValue = "0") int page,
                     @RequestParam(defaultValue = "12") int size,
                     @RequestParam(defaultValue = "newest") String sort
@@ -72,6 +156,9 @@ import java.util.List;
                     case "oldest" -> Sort.by("createdAt").ascending();
                     case "priceAsc" -> Sort.by("variants.price").ascending();
                     case "priceDesc" -> Sort.by("variants.price").descending();
+                    case "az" -> Sort.by("name").ascending();
+                    case "za" -> Sort.by("name").descending();
+                    case "bestSelling" -> Sort.unsorted();
                     case "all" -> Sort.unsorted();
                     default -> Sort.by("createdAt").descending();
                 };
@@ -79,7 +166,7 @@ import java.util.List;
                 Pageable pageable = PageRequest.of(page, size, sortConfig);
 
                 var result = service.filterProducts(
-                        search, categories, brands, minPrice, maxPrice, rating, stocks, pageable
+                        search, categories, brands, minPrice, maxPrice, rating, stocks, active, pageable, sort
                 );
 
                 // mapping
@@ -110,6 +197,12 @@ import java.util.List;
                     map.put("averageRating", product.getAverageRating());
                     map.put("brandName", product.getBrand() != null ? product.getBrand().getName() : null);
                     map.put("categoryName", product.getCategory() != null ? product.getCategory().getName() : null);
+                    
+                    // Add IDs for Edit Modal
+                    map.put("brandId", product.getBrand() != null ? product.getBrand().getId() : null);
+                    map.put("categoryId", product.getCategory() != null ? product.getCategory().getId() : null);
+                    
+                    map.put("createdAt", product.getCreatedAt());
 
                     map.put("variants", product.getVariants());
                     map.put("minPrice", min);
@@ -117,6 +210,9 @@ import java.util.List;
 
                     map.put("inStock", inStock);
                     map.put("lowStock", lowStock);
+                    map.put("isActive", product.isActive());
+                    map.put("quantity", totalQty); // Ensure quantity is also sum of variants if needed for table
+                    map.put("totalSold", product.getTotalSold());
 
                     return map;
                 }).toList();

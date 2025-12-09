@@ -1,14 +1,16 @@
 package iuh.fit.se.cosmeticsecommercebackend.controller;
 
+import iuh.fit.se.cosmeticsecommercebackend.model.Account;
 import iuh.fit.se.cosmeticsecommercebackend.model.Employee;
 import iuh.fit.se.cosmeticsecommercebackend.service.EmployeeService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/employees") // Đặt version cho API
+@RequestMapping("/api/employees")
 public class EmployeeController {
     private final EmployeeService employeeService;
 
@@ -16,9 +18,24 @@ public class EmployeeController {
         this.employeeService = employeeService;
     }
 
+    // --- [QUAN TRỌNG] CLASS DTO ĐỂ HỨNG DỮ LIỆU TỪ FRONTEND ---
+    // Giúp tránh lỗi @JsonIgnore trong Entity
+    public static class CreateEmployeeDTO {
+        public LocalDateTime hireDate;
+        public Account account; // Hứng cục account từ JSON
+    }
+
     // 1. CREATE
     @PostMapping
-    public ResponseEntity<Employee> createEmployee(@RequestBody Employee employee) {
+    public ResponseEntity<Employee> createEmployee(@RequestBody CreateEmployeeDTO request) {
+        // Tạo Employee rỗng
+        Employee employee = new Employee();
+
+        // Map dữ liệu từ DTO sang Entity
+        employee.setHireDate(request.hireDate);
+        employee.setAccount(request.account);
+
+        // Gọi Service
         Employee createdEmployee = employeeService.createEmployee(employee);
         return ResponseEntity.ok(createdEmployee);
     }

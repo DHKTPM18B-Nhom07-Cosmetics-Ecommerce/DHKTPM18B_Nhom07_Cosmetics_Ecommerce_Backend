@@ -20,7 +20,7 @@ public interface OrderDetailService {
     BigDecimal calculateDetailTotal(Integer quantity, BigDecimal unitPrice);
 
     // Hoàn trả tồn kho cho tất cả ProductVariant khi Order bị hủy
-    void restoreStockForOrder(Long orderId);
+    void restoreStockForOrder(String orderId);
 
     //TIM KIEM THEO MQH
     List<OrderDetail> getDetailsByOrder(Order order);

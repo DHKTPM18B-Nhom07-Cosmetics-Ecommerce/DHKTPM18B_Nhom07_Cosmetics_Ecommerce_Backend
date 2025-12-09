@@ -97,4 +97,22 @@ public class ProductSpecification {
             );
         };
     }
+    public static Specification<Product> isActive(boolean active) {
+        return (root, query, cb) -> cb.equal(root.get("isActive"), active);
+    }
+
+    public static Specification<Product> sortByTotalSold() {
+        return (root, query, cb) -> {
+            query.distinct(true);
+            var sub = query.subquery(Integer.class);
+            var variantRoot = sub.from(ProductVariant.class);
+            sub.select(cb.coalesce(cb.sum(variantRoot.get("sold")), 0))
+                    .where(cb.equal(variantRoot.get("product"), root));
+            
+            // Apply sorting logic
+            query.orderBy(cb.desc(sub));
+            
+            return cb.conjunction();
+        };
+    }
 }

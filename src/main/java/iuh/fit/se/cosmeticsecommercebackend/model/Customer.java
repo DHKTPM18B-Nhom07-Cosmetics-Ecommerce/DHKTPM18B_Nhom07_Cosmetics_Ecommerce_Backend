@@ -35,9 +35,12 @@ public class Customer {
      * 1 Customer có 1 Account
      */
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "account_id", nullable = false, unique = true)
+//    @JoinColumn(name = "account_id", nullable = false, unique = true)
+    @JoinColumn(name = "account_id", nullable = true, unique = true)
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Account account;
+
+
 
     /**
      * Quan hệ 1-n với Address
@@ -60,7 +63,7 @@ public class Customer {
      * 1 Customer có nhiều Order (đơn hàng)
      */
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonBackReference("order-customer")
+    @JsonManagedReference
     private List<Order> orders = new ArrayList<>();
 
     /**
@@ -144,6 +147,7 @@ public class Customer {
     public void setReviews(List<Review> reviews) {
         this.reviews = reviews;
     }
+
     public List<CustomerVoucher> getCustomerVouchers() {
         return customerVouchers;
     }
