@@ -23,7 +23,7 @@ public class StatsController {
     }
 
     // Yêu cầu: Đăng nhập và có quyền ADMIN hoặc EMPLOYEE
-//    @PreAuthorize("hasAnyAuthority('ADMIN', 'EMPLOYEE')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'EMPLOYEE')")
     @GetMapping("/revenue/daily")
     public ResponseEntity<List<RevenueStatsRespond>> getDailyRevenue(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
@@ -33,8 +33,8 @@ public class StatsController {
         return ResponseEntity.ok(revenueData);
     }
 
-    // Yêu cầu: Đăng nhập và có quyền ADMIN hoặc EMPLOYEE
-//    @PreAuthorize("hasAnyAuthority('ADMIN', 'EMPLOYEE')")
+//     Yêu cầu: Đăng nhập và có quyền ADMIN hoặc EMPLOYEE
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'EMPLOYEE')")
     @GetMapping("/products/top5")
     public ResponseEntity<List<TopProductRespond>> getTopProducts(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
