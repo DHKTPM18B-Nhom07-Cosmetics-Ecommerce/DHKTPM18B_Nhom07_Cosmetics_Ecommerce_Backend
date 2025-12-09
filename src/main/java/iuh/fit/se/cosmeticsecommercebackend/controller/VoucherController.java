@@ -4,8 +4,10 @@ import iuh.fit.se.cosmeticsecommercebackend.model.Voucher;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.VoucherScope;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.VoucherStatus;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.VoucherType;
+import iuh.fit.se.cosmeticsecommercebackend.repository.VoucherRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.VoucherService;
-
+import iuh.fit.se.cosmeticsecommercebackend.service.voucher.DiscountResult;
+import iuh.fit.se.cosmeticsecommercebackend.service.voucher.VoucherEngine;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,9 +23,17 @@ import java.util.*;
 public class VoucherController {
 
     private final VoucherService service;
+    private final VoucherRepository voucherRepository;
+    private final VoucherEngine voucherEngine;
 
-    public VoucherController(VoucherService service) {
+    public VoucherController(
+            VoucherService service,
+            VoucherRepository voucherRepository,
+            VoucherEngine voucherEngine
+    ) {
         this.service = service;
+        this.voucherRepository = voucherRepository;
+        this.voucherEngine = voucherEngine;
     }
 
     /* ============================================================
@@ -253,7 +263,6 @@ public class VoucherController {
 
         v.setValue(safeDecimal(body.get("value")));
 
-        // maxDiscount: cho phép null (đặc biệt với AMOUNT / SHIPPING_FREE)
         Object maxObj = body.get("maxDiscount");
         if (maxObj == null || maxObj.toString().trim().isEmpty()) {
             v.setMaxDiscount(null);
@@ -359,7 +368,6 @@ public class VoucherController {
     private List<Long> parseIds(Object obj) {
         if (obj == null) return List.of();
 
-        // từ FE gửi lên là List<Long>
         if (obj instanceof List<?> list) {
             List<Long> ids = new ArrayList<>();
             for (Object item : list) {
@@ -371,7 +379,6 @@ public class VoucherController {
             return ids;
         }
 
-        // từ Excel: "1,2,3"
         String raw = obj.toString().trim().replace("[", "").replace("]", "");
         if (raw.isEmpty()) return List.of();
 
@@ -386,67 +393,61 @@ public class VoucherController {
         return ids;
     }
 
-    // ================= APPLY VOUCHER =================
+    /* ================= APPLY VOUCHER (PREVIEW) ================= */
 
     @PostMapping("/apply")
     public ResponseEntity<?> applyVoucher(@RequestBody Map<String, Object> body) {
 
-        Object codeObj = body.get("code");
-        Object itemsObj = body.get("items");
+        try {
+            Object codeObj = body.get("code");
+            Object itemsObj = body.get("items");
 
-        if (codeObj == null || codeObj.toString().trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "valid", false,
-                    "message", "Thiếu mã voucher",
-                    "discount", 0
-            ));
+            if (codeObj == null || codeObj.toString().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(
+                        Map.of("valid", false, "message", "Thiếu mã voucher")
+                );
+            }
+
+            if (!(itemsObj instanceof List<?> items) || items.isEmpty()) {
+                return ResponseEntity.badRequest().body(
+                        Map.of("valid", false, "message", "Giỏ hàng trống")
+                );
+            }
+
+            String code = codeObj.toString().trim();
+
+            BigDecimal subtotal = BigDecimal.ZERO;
+            for (Object obj : (List<?>) items) {
+                Map<String, Object> i = (Map<String, Object>) obj;
+                BigDecimal price = new BigDecimal(i.get("price").toString());
+                int qty = Integer.parseInt(i.get("quantity").toString());
+                subtotal = subtotal.add(price.multiply(BigDecimal.valueOf(qty)));
+            }
+
+            Voucher v = voucherRepository.findByCodeIgnoreCase(code)
+                    .orElseThrow(() -> new RuntimeException("Voucher không tồn tại"));
+
+            DiscountResult result = voucherEngine.preview(
+                    subtotal,
+                    BigDecimal.valueOf(30000),
+                    (List<Map<String, Object>>) itemsObj,
+                    List.of(v)
+            );
+
+            return ResponseEntity.ok(
+                    Map.of(
+                            "valid", true,
+                            "code", v.getCode(),
+                            "type", v.getType().name(),
+                            "discountAmount", result.getOrderDiscount(),
+                            "shippingDiscount", result.getShippingDiscount()
+                    )
+            );
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("valid", false, "message", e.getMessage())
+            );
         }
-
-        if (!(itemsObj instanceof List<?> items) || items.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "valid", false,
-                    "message", "Danh sách sản phẩm trống",
-                    "discount", 0
-            ));
-        }
-
-        return ResponseEntity.ok(
-                service.applyVoucher(
-                        codeObj.toString().trim(),
-                        (List<Map<String, Object>>) items
-                )
-        );
     }
-
-
-    @PostMapping("/apply-multiple")
-    public ResponseEntity<?> applyMultiple(@RequestBody Map<String, Object> body) {
-
-        Object codesObj = body.get("codes");
-        Object itemsObj = body.get("items");
-
-        if (!(codesObj instanceof List<?> codes) || codes.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "valid", false,
-                    "message", "Chưa chọn voucher"
-            ));
-        }
-
-        if (!(itemsObj instanceof List<?> items) || items.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "valid", false,
-                    "message", "Giỏ hàng trống"
-            ));
-        }
-
-        return ResponseEntity.ok(
-                service.applyMultipleVouchers(
-                        (List<String>) codes,
-                        (List<Map<String, Object>>) items
-                )
-        );
-    }
-
-
-
 }

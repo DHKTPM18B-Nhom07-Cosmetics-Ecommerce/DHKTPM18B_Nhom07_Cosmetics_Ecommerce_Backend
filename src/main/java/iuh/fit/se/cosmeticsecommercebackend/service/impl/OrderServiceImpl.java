@@ -6,15 +6,18 @@ import iuh.fit.se.cosmeticsecommercebackend.model.enums.OrderStatus;
 import iuh.fit.se.cosmeticsecommercebackend.payload.CreateOrderRequest;
 import iuh.fit.se.cosmeticsecommercebackend.payload.CreateOrderResponse;
 import iuh.fit.se.cosmeticsecommercebackend.payload.OrderDetailRequest;
-import iuh.fit.se.cosmeticsecommercebackend.payload.OrderDetailResponse;
 import iuh.fit.se.cosmeticsecommercebackend.repository.AddressRepository;
 import iuh.fit.se.cosmeticsecommercebackend.repository.OrderRepository;
+import iuh.fit.se.cosmeticsecommercebackend.repository.VoucherRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.*;
+import iuh.fit.se.cosmeticsecommercebackend.service.voucher.DiscountResult;
+import iuh.fit.se.cosmeticsecommercebackend.service.voucher.VoucherEngine;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -25,36 +28,30 @@ public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepo;
     private final CustomerService customerService;
-    private final EmployeeService employeeService;
     private final AddressService addressService;
     private final ProductVariantService productVariantService;
     private final AddressRepository addressRepository;
-    private final CartItemService cartItemService;
     private final OrderDetailService orderDetailService;
 
-    @Autowired
-    private RiskService riskService;
+    @Autowired private VoucherEngine voucherEngine;
+    @Autowired private VoucherRepository voucherRepository;
+    @Autowired private RiskService riskService;
+    @Autowired private VoucherRedemptionService voucherRedemptionService;
 
-    @Autowired(required = false)
-    private MailService mailService; // optional
 
     public OrderServiceImpl(
             OrderRepository orderRepo,
             CustomerService customerService,
-            EmployeeService employeeService,
             AddressService addressService,
             ProductVariantService productVariantService,
             AddressRepository addressRepository,
-            CartItemService cartItemService,
             OrderDetailService orderDetailService
     ) {
         this.orderRepo = orderRepo;
         this.customerService = customerService;
-        this.employeeService = employeeService;
         this.addressService = addressService;
         this.productVariantService = productVariantService;
         this.addressRepository = addressRepository;
-        this.cartItemService = cartItemService;
         this.orderDetailService = orderDetailService;
     }
 
@@ -65,27 +62,27 @@ public class OrderServiceImpl implements OrderService {
                 .format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String prefix = "OD-" + today;
 
-        Optional<String> lastId = orderRepo.findLastOrderIdByDatePrefix(prefix);
-        int seq = lastId
-                .map(id -> Integer.parseInt(id.substring(id.length() - 2)) + 1)
-                .orElse(1);
-
-        return prefix + String.format("%02d", seq);
+        return orderRepo.findLastOrderIdByDatePrefix(prefix)
+                .map(id -> {
+                    int seq = Integer.parseInt(id.substring(id.length() - 2)) + 1;
+                    return prefix + String.format("%02d", seq);
+                })
+                .orElse(prefix + "01");
     }
 
     /* ===================== CREATE ===================== */
 
     @Override
+    @Transactional
     public CreateOrderResponse createOrderFromRequest(CreateOrderRequest request) {
 
         Customer customer = null;
-        Address address;
-
         if (request.getCustomerId() != null && request.getCustomerId() > 0) {
             customer = customerService.findById(request.getCustomerId());
         }
 
-        // ===== ADDRESS =====
+        /* ---------- ADDRESS ---------- */
+        Address address;
         if (customer == null) {
             address = new Address();
             address.setId(Address.generateAddressId());
@@ -102,34 +99,52 @@ public class OrderServiceImpl implements OrderService {
             address = customer.getAddresses().stream()
                     .filter(Address::isDefault)
                     .findFirst()
-                    .orElseThrow(() -> new ResourceNotFoundException("Chưa có địa chỉ mặc định"));
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException("Chưa có địa chỉ mặc định"));
         }
 
         if (request.getOrderDetails() == null || request.getOrderDetails().isEmpty()) {
             throw new IllegalArgumentException("Đơn hàng rỗng");
         }
 
+        /* ---------- ORDER BASE (CHƯA ÁP VOUCHER) ---------- */
         Order order = new Order();
         order.setId(generateNewOrderId());
         order.setCustomer(customer);
         order.setAddress(address);
         order.setOrderDate(LocalDateTime.now());
         order.setStatus(OrderStatus.PENDING);
-        order.setShippingFee(
-                request.getShippingFee() != null ? request.getShippingFee() : new BigDecimal("30000")
-        );
 
-        // ✅ guest phone
+        BigDecimal shippingFee =
+                request.getShippingFee() != null
+                        ? request.getShippingFee()
+                        : BigDecimal.valueOf(30000);
+
+        order.setShippingFee(shippingFee);
+
         if (customer == null) {
-            order.setGuestPhone(normalizePhone(request.getShippingPhone()));
+            String phone = normalizePhone(request.getShippingPhone());
+
+            if (phone == null || phone.length() < 9 || phone.length() > 12) {
+                throw new IllegalArgumentException("SĐT guest không hợp lệ");
+            }
+
+            order.setGuestPhone(phone);
         }
 
-        List<OrderDetail> details = new ArrayList<>();
+
+        order.setSubtotal(BigDecimal.ZERO);
+        order.setDiscountAmount(BigDecimal.ZERO);
+        order.setTotal(BigDecimal.ZERO);
+
+        /* ---------- ORDER DETAILS ---------- */
         BigDecimal subtotal = BigDecimal.ZERO;
+        List<OrderDetail> details = new ArrayList<>();
 
         for (OrderDetailRequest dr : request.getOrderDetails()) {
 
             ProductVariant pv = productVariantService.getById(dr.getProductVariantId());
+
             if (pv.getQuantity() < dr.getQuantity()) {
                 throw new IllegalStateException("Không đủ tồn kho");
             }
@@ -139,57 +154,122 @@ public class OrderServiceImpl implements OrderService {
             od.setProductVariant(pv);
             od.setQuantity(dr.getQuantity());
             od.setUnitPrice(pv.getPrice());
+            od.setDiscountAmount(BigDecimal.ZERO);
+            od.recalc();
 
-            BigDecimal lineTotal = pv.getPrice()
-                    .multiply(BigDecimal.valueOf(dr.getQuantity()));
-            od.setTotalPrice(lineTotal);
+            subtotal = subtotal.add(od.getTotalPrice());
 
-            subtotal = subtotal.add(lineTotal);
+            // trừ tồn
             pv.setQuantity(pv.getQuantity() - dr.getQuantity());
 
             details.add(od);
         }
 
         order.setOrderDetails(details);
+        order.setSubtotal(subtotal);
 
-        BigDecimal discount = request.getDiscount() != null ? request.getDiscount() : BigDecimal.ZERO;
-        order.setTotal(subtotal.add(order.getShippingFee()).subtract(discount));
-
+        // Lưu lần 1 – để có ID cho OrderDetail
         Order saved = orderRepo.save(order);
 
-        // mail optional
-        if (mailService != null && saved.getCustomer() != null && saved.getCustomer().getAccount() != null) {
-            try {
-                mailService.sendOrderConfirmationEmail(
-                        saved.getCustomer().getAccount().getUsername(),
-                        saved
-                );
-            } catch (Exception ignored) {}
+        /* ---------- LẤY VOUCHER TỪ REQUEST ---------- */
+        List<Voucher> vouchers = new ArrayList<>();
+        if (request.getVoucherCodes() != null) {
+            request.getVoucherCodes().forEach(code ->
+                    voucherRepository.findByCodeIgnoreCase(code)
+                            .ifPresent(vouchers::add)
+            );
         }
 
+        // Nếu không có voucher nào => không cần gọi engine
+        if (vouchers.isEmpty()) {
+            // chỉ cần tính total = subtotal + shipping
+            BigDecimal totalNoVoucher = subtotal.add(shippingFee);
+            saved.setTotal(totalNoVoucher);
+            saved.setDiscountAmount(BigDecimal.ZERO);
+            saved.setShippingFee(shippingFee);
+            saved = orderRepo.save(saved);
+
+
+            CreateOrderResponse res = new CreateOrderResponse();
+            res.setId(saved.getId());
+            res.setStatus(saved.getStatus().name());
+            res.setTotalAmount(saved.getTotal());
+            return res;
+        }
+
+        /* ---------- ÁP VOUCHER THẬT SỰ ---------- */
+        DiscountResult discountResult = voucherEngine.apply(saved, vouchers);
+
+        BigDecimal orderDiscount = discountResult.getOrderDiscount();
+        BigDecimal shippingDiscount = discountResult.getShippingDiscount();
+
+        // PHÂN BỔ DISCOUNT ITEM (nếu engine trả về map theo orderDetailId)
+        Map<Long, BigDecimal> itemDiscounts = discountResult.getItemDiscounts();
+        BigDecimal itemDiscountTotal = BigDecimal.ZERO;
+
+        for (OrderDetail od : saved.getOrderDetails()) {
+            BigDecimal d = itemDiscounts.getOrDefault(od.getId(), BigDecimal.ZERO);
+            od.setDiscountAmount(d);
+            od.recalc();
+            itemDiscountTotal = itemDiscountTotal.add(d);
+        }
+
+        // Phí ship cuối cùng
+        BigDecimal finalShippingFee = shippingFee.subtract(shippingDiscount);
+        if (finalShippingFee.compareTo(BigDecimal.ZERO) < 0) {
+            finalShippingFee = BigDecimal.ZERO;
+        }
+
+        // Tổng tiền cuối
+        BigDecimal total =
+                saved.getSubtotal()
+                        .subtract(orderDiscount)
+                        .subtract(itemDiscountTotal)
+                        .add(finalShippingFee);
+
+        if (total.compareTo(BigDecimal.ZERO) < 0) {
+            total = BigDecimal.ZERO;
+        }
+
+        saved.setDiscountAmount(orderDiscount.add(itemDiscountTotal));
+        saved.setShippingFee(finalShippingFee);
+        saved.setTotal(total);
+
+        // Lưu lần 2 – sau khi đã áp voucher
+        saved = orderRepo.save(saved);
+
+
+        /* ================= SAVE VOUCHER REDEMPTION ================= */
+        for (Voucher v : vouchers) {
+
+            BigDecimal totalDiscountForThisVoucher =
+                    discountResult.getOrderDiscount()
+                            .add(discountResult.getShippingDiscount());
+
+            if (totalDiscountForThisVoucher.compareTo(BigDecimal.ZERO) <= 0) {
+                continue; // không giảm thì không lưu
+            }
+
+            VoucherRedemption vr = new VoucherRedemption();
+            vr.setVoucher(v);
+            vr.setOrder(saved);
+            vr.setCustomer(customer); // null nếu guest
+            vr.setAmountDiscounted(totalDiscountForThisVoucher);
+
+            voucherRedemptionService.create(vr);
+        }
+
+
+
+        /* ---------- RESPONSE ---------- */
         CreateOrderResponse res = new CreateOrderResponse();
         res.setId(saved.getId());
         res.setStatus(saved.getStatus().name());
         res.setTotalAmount(saved.getTotal());
 
-        List<OrderDetailResponse> drs = new ArrayList<>();
-        for (OrderDetail d : saved.getOrderDetails()) {
-            OrderDetailResponse r = new OrderDetailResponse();
-            r.setId(d.getId());
-            r.setProductVariantId(d.getProductVariant().getId());
-            r.setQuantity(d.getQuantity());
-            r.setPrice(d.getUnitPrice());
-            r.setSubtotal(d.getTotalPrice());
-            drs.add(r);
-        }
-        res.setOrderDetails(drs);
-
-        if (request.getCartItemIds() != null) {
-            request.getCartItemIds().forEach(cartItemService::deleteCartItemById);
-        }
-
         return res;
     }
+
 
     /* ===================== READ ===================== */
 
@@ -201,7 +281,8 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public Order findById(String id) {
         return orderRepo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Không tìm thấy đơn hàng"));
     }
 
     @Override
@@ -214,55 +295,55 @@ public class OrderServiceImpl implements OrderService {
     public Order getCustomerOrderById(String orderId, String username) {
         Order o = findById(orderId);
         Customer c = customerService.findByAccountUsername(username);
+
         if (o.getCustomer() == null || !o.getCustomer().getId().equals(c.getId())) {
-            throw new ResourceNotFoundException("Không có quyền");
+            throw new ResourceNotFoundException("Không có quyền truy cập đơn hàng");
         }
         return o;
     }
 
     /* ===================== SEARCH ===================== */
 
-    @Override public List<Order> findByCustomer(Customer c) { return orderRepo.findByCustomer(c); }
-    @Override public List<Order> findByEmployee(Employee e) { return orderRepo.findByEmployee(e); }
-    @Override public List<Order> findByStatus(OrderStatus s) { return orderRepo.findByStatus(s); }
-    @Override public List<Order> findByOrderDateBetween(LocalDateTime s, LocalDateTime e) {
-        return orderRepo.findByOrderDateBetween(s, e);
+    @Override
+    public List<Order> findByCustomer(Customer customer) {
+        return orderRepo.findByCustomer(customer);
     }
-    @Override public List<Order> findByStatusAndCustomer(OrderStatus s, Customer c) {
-        return orderRepo.findByStatusAndCustomer(s, c);
+
+    @Override
+    public List<Order> findByEmployee(Employee employee) {
+        return orderRepo.findByEmployee(employee);
     }
-    @Override public List<Order> findByTotalBetween(BigDecimal min, BigDecimal max) {
+
+    @Override
+    public List<Order> findByStatus(OrderStatus status) {
+        return orderRepo.findByStatus(status);
+    }
+
+    @Override
+    public List<Order> findByOrderDateBetween(LocalDateTime start, LocalDateTime end) {
+        return orderRepo.findByOrderDateBetween(start, end);
+    }
+
+    @Override
+    public List<Order> findByStatusAndCustomer(OrderStatus status, Customer customer) {
+        return orderRepo.findByStatusAndCustomer(status, customer);
+    }
+
+    @Override
+    public List<Order> findByTotalBetween(BigDecimal min, BigDecimal max) {
         return orderRepo.findByTotalBetween(min, max);
     }
-    @Override public List<Order> findByStatusAndOrderDateBetween(OrderStatus s, LocalDateTime st, LocalDateTime ed) {
-        return orderRepo.findByStatusAndOrderDateBetween(s, st, ed);
+
+    @Override
+    public List<Order> findByStatusAndOrderDateBetween(
+            OrderStatus status,
+            LocalDateTime start,
+            LocalDateTime end
+    ) {
+        return orderRepo.findByStatusAndOrderDateBetween(status, start, end);
     }
 
     /* ===================== STATUS ===================== */
-
-    @Override
-    public Order cancelByCustomer(String orderId, String reason, Customer customer) {
-
-        Order o = findById(orderId);
-
-        if (o.getStatus() != OrderStatus.PENDING) {
-            throw new IllegalStateException("Chỉ có thể hủy đơn PENDING");
-        }
-
-        orderDetailService.restoreStockForOrder(orderId);
-
-        o.setStatus(OrderStatus.CANCELLED);
-        o.setCancelReason(reason);
-        o.setCanceledAt(LocalDateTime.now());
-
-        if (customer.getAccount() != null) {
-            riskService.checkAndAlertOrderSpam(
-                    customer.getAccount().getId(),
-                    customer.getAccount().getUsername()
-            );
-        }
-        return orderRepo.save(o);
-    }
 
     @Override
     public Order cancelByEmployee(String id, String reason, Employee employee) {
@@ -275,11 +356,35 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    public Order cancelByCustomer(String orderId, String reason, Customer customer) {
+        Order o = findById(orderId);
+
+        if (o.getStatus() != OrderStatus.PENDING) {
+            throw new IllegalStateException("Chỉ hủy được đơn PENDING");
+        }
+
+        orderDetailService.restoreStockForOrder(orderId);
+
+        o.setStatus(OrderStatus.CANCELLED);
+        o.setCancelReason(reason);
+        o.setCanceledAt(LocalDateTime.now());
+
+        if (customer != null && customer.getAccount() != null) {
+            riskService.checkAndAlertOrderSpam(
+                    customer.getAccount().getId(),
+                    customer.getAccount().getUsername()
+            );
+        }
+
+        return orderRepo.save(o);
+    }
+
+    @Override
     public Order requestReturn(String id, String reason, Employee employee) {
         Order o = findById(id);
         o.setStatus(OrderStatus.RETURNED);
-        o.setEmployee(employee);
         o.setCancelReason(reason);
+        o.setEmployee(employee);
         return orderRepo.save(o);
     }
 
@@ -316,6 +421,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /* ===================== HELPER ===================== */
+
     private String normalizePhone(String phone) {
         return phone == null ? null : phone.replaceAll("[^0-9]", "");
     }

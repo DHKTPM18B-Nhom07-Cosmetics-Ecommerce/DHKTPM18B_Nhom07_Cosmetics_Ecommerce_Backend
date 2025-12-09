@@ -31,9 +31,5 @@ public interface VoucherService {
     // thêm method apply
     Map<String, Object> applyVoucher(String code, List<Map<String, Object>> items);
 
-    Map<String, Object> applyMultipleVouchers(
-            List<String> codes,
-            List<Map<String, Object>> items
-    );
 
 }

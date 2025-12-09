@@ -104,6 +104,12 @@ public class Order {
     @Column(name = "guest_phone", length = 20)
     private String guestPhone;
 
+    // sửa NEW
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal subtotal = BigDecimal.ZERO;
+
+    @Column(name = "discount_amount", nullable = false, precision = 12, scale = 2)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
 
     /**
      * Quan hệ 1-n với OrderDetail
@@ -237,5 +243,22 @@ public class Order {
 
     public void setGuestPhone(String guestPhone) {
         this.guestPhone = guestPhone;
+    }
+
+//    NEW
+    public BigDecimal getSubtotal() {
+        return subtotal;
+    }
+//NEW
+    public void setSubtotal(BigDecimal subtotal) {
+        this.subtotal = subtotal;
+    }
+
+    public BigDecimal getDiscountAmount() {
+        return discountAmount;
+    }
+
+    public void setDiscountAmount(BigDecimal discountAmount) {
+        this.discountAmount = discountAmount;
     }
 }

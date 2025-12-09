@@ -15,8 +15,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * ORDER REPOSITORY
+ * Spring Data JPA sẽ tự động sinh implementation
+ */
 public interface OrderRepository extends JpaRepository<Order, String> {
 
+    /* ===================== READ ===================== */
+
+    // Load FULL order (customer, address, orderDetails, product, voucher...)
     @EntityGraph(value = "order-full-details-graph", type = EntityGraph.EntityGraphType.LOAD)
     Optional<Order> findById(String id);
 
@@ -30,24 +37,44 @@ public interface OrderRepository extends JpaRepository<Order, String> {
     List<Order> findByEmployee(Employee employee);
 
     @EntityGraph(attributePaths = {"customer", "address"})
-    List<Order> findByStatus(OrderStatus orderStatus);
+    List<Order> findByStatus(OrderStatus status);
 
-    List<Order> findByOrderDateBetween(LocalDateTime startDate, LocalDateTime endDate);
+    List<Order> findByOrderDateBetween(
+            LocalDateTime startDate,
+            LocalDateTime endDate
+    );
 
-    List<Order> findByStatusAndCustomer(OrderStatus status, Customer customer);
+    List<Order> findByStatusAndCustomer(
+            OrderStatus status,
+            Customer customer
+    );
 
-    List<Order> findByTotalBetween(BigDecimal minTotal, BigDecimal maxTotal);
+    List<Order> findByTotalBetween(
+            BigDecimal minTotal,
+            BigDecimal maxTotal
+    );
 
-    List<Order> findByStatusAndOrderDateBetween(OrderStatus status, LocalDateTime startDate, LocalDateTime endDate);
+    List<Order> findByStatusAndOrderDateBetween(
+            OrderStatus status,
+            LocalDateTime startDate,
+            LocalDateTime endDate
+    );
 
-    @Query(value =
-            "SELECT o.order_id FROM orders o " +
-                    "WHERE o.order_id LIKE CONCAT(?1, '%') " +
-                    "ORDER BY o.order_id DESC LIMIT 1",
-            nativeQuery = true)
+    /* ===================== ORDER ID ===================== */
+
+    // Lấy order_id cuối cùng theo prefix (OD-20241203xx)
+    @Query(value = """
+        SELECT o.order_id
+        FROM orders o
+        WHERE o.order_id LIKE CONCAT(?1, '%')
+        ORDER BY o.order_id DESC
+        LIMIT 1
+    """, nativeQuery = true)
     Optional<String> findLastOrderIdByDatePrefix(String prefix);
 
-    // QUAN TRỌNG: sửa để dùng guest_phone
+    /* ===================== GUEST LINK ===================== */
+
+    // Gắn đơn GUEST → CUSTOMER sau khi đăng ký
     @Modifying
     @Query("""
         UPDATE Order o
@@ -60,17 +87,19 @@ public interface OrderRepository extends JpaRepository<Order, String> {
             @Param("phone") String phone
     );
 
+    /* ===================== STATISTICS ===================== */
+
+    // Đếm đơn theo trạng thái + thời gian (anti spam / báo cáo)
     @Query("""
-    SELECT COUNT(o)
-    FROM Order o
-    WHERE o.customer.account.id = :accountId
-      AND o.status = :status
-      AND o.orderDate >= :fromDate
-""")
+        SELECT COUNT(o)
+        FROM Order o
+        WHERE o.customer.account.id = :accountId
+          AND o.status = :status
+          AND o.orderDate >= :fromDate
+    """)
     long countOrdersByStatusAndDate(
             @Param("accountId") Long accountId,
             @Param("status") OrderStatus status,
             @Param("fromDate") LocalDateTime fromDate
     );
-
 }

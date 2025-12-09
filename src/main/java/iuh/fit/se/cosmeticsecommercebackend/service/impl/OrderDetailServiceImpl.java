@@ -29,7 +29,7 @@ public class OrderDetailServiceImpl implements OrderDetailService {
         this.productVariantService = productVariantService;
     }
 
-    // ========= CRUD =========
+    /* ================= CRUD ================= */
 
     @Override
     public OrderDetail createOrderDetail(OrderDetail orderDetail) {
@@ -41,7 +41,8 @@ public class OrderDetailServiceImpl implements OrderDetailService {
             );
         }
 
-        validateAndCalculate(orderDetail);
+        // ✅ KHÔNG tự tính ở đây – entity tự lo
+        orderDetail.recalc();
         return repo.save(orderDetail);
     }
 
@@ -67,18 +68,26 @@ public class OrderDetailServiceImpl implements OrderDetailService {
 
         existing.setQuantity(data.getQuantity());
         existing.setUnitPrice(data.getUnitPrice());
-        existing.setDiscountAmount(data.getDiscountAmount());
+        existing.setDiscountAmount(
+                data.getDiscountAmount() != null
+                        ? data.getDiscountAmount()
+                        : BigDecimal.ZERO
+        );
 
-        validateAndCalculate(existing);
+        // ✅ ENTITY TỰ CALC
+        existing.recalc();
         return repo.save(existing);
     }
 
-    // ========= BUSINESS =========
+    /* ================= BUSINESS ================= */
 
     @Override
     public BigDecimal calculateDetailTotal(Integer quantity, BigDecimal unitPrice) {
-        if (quantity == null || unitPrice == null || quantity <= 0) {
-            throw new IllegalArgumentException("Số lượng và đơn giá không hợp lệ.");
+        if (quantity == null || quantity <= 0) {
+            throw new IllegalArgumentException("Số lượng phải > 0");
+        }
+        if (unitPrice == null || unitPrice.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Đơn giá không hợp lệ");
         }
         return unitPrice.multiply(BigDecimal.valueOf(quantity));
     }
@@ -107,25 +116,5 @@ public class OrderDetailServiceImpl implements OrderDetailService {
     @Override
     public List<OrderDetail> findByProductVariant(ProductVariant variant) {
         return repo.findByProductVariant(variant);
-    }
-
-    // ========= UTIL =========
-
-    private void validateAndCalculate(OrderDetail d) {
-        if (d.getQuantity() <= 0) {
-            throw new IllegalArgumentException("Số lượng phải > 0");
-        }
-        if (d.getUnitPrice().compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Đơn giá không hợp lệ");
-        }
-
-        BigDecimal total =
-                d.getUnitPrice().multiply(BigDecimal.valueOf(d.getQuantity()));
-
-        if (d.getDiscountAmount() != null) {
-            total = total.subtract(d.getDiscountAmount());
-        }
-
-        d.setTotalPrice(total.max(BigDecimal.ZERO));
     }
 }

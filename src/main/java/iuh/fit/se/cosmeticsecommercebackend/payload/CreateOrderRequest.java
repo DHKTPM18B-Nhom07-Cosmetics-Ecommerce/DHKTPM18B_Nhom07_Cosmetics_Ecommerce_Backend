@@ -15,7 +15,9 @@ public class CreateOrderRequest {
     private String status;
     private BigDecimal totalAmount;
     private BigDecimal shippingFee;
-    private BigDecimal discount;
+
+    private List<String> voucherCodes; //thêm
+
     private List<OrderDetailRequest> orderDetails;
     private List<Long> cartItemIds;
 
@@ -74,13 +76,6 @@ public class CreateOrderRequest {
         this.shippingFee = shippingFee;
     }
 
-    public BigDecimal getDiscount() {
-        return discount;
-    }
-
-    public void setDiscount(BigDecimal discount) {
-        this.discount = discount;
-    }
 
     public List<OrderDetailRequest> getOrderDetails() {
         return orderDetails;
@@ -145,5 +140,13 @@ public class CreateOrderRequest {
 
     public void setShippingCountry(String shippingCountry) {
         this.shippingCountry = shippingCountry;
+    }
+
+    public List<String> getVoucherCodes() {
+        return voucherCodes;
+    }
+
+    public void setVoucherCodes(List<String> voucherCodes) {
+        this.voucherCodes = voucherCodes;
     }
 }
