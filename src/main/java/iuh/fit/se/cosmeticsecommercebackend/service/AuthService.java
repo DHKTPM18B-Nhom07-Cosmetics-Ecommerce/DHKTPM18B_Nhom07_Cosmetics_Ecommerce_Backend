@@ -36,6 +36,10 @@ public class AuthService {
     @Autowired
     private MailService mailService;
 
+    @Autowired
+    private AddressService addressService;
+
+
     @Transactional
     public Account registerCustomer(RegisterRequest request) {
 
@@ -58,16 +62,18 @@ public class AuthService {
         customer.setAccount(savedAccount);
         Customer savedCustomer = customerRepository.save(customer);
 
-        // GẮN ĐƠN GUEST → CUSTOMER dựa theo guestPhone
-//        orderService.linkGuestOrders(request.getPhone(), savedCustomer); cũ
-        orderService.linkGuestOrders(
-                normalizePhone(request.getPhone()),
-                savedCustomer
-        );
+        // Chuẩn hoá sđt
+        String phone = normalizePhone(request.getPhone());
 
+        // gắn đơn từ guest thành cus
+        orderService.linkGuestOrders(phone, savedCustomer);
+
+        // gắn địa chỉ kèm theo
+        addressService.linkGuestAddresses(phone, savedCustomer);
 
         return savedAccount;
     }
+
 
 
 
