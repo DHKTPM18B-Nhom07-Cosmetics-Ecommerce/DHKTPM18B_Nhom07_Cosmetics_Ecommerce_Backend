@@ -48,8 +48,15 @@ public class VoucherEngine {
 
         for (Voucher v : vouchers) {
             if (v.getType() == VoucherType.SHIPPING_FREE) {
-                shippingDiscount = shippingDiscount.add(order.getShippingFee());
+
+                // freeship tối đa 30k
+                BigDecimal maxFreeShip = BigDecimal.valueOf(30000);
+
+                BigDecimal shipDiscount = order.getShippingFee().min(maxFreeShip);
+
+                shippingDiscount = shippingDiscount.add(shipDiscount);
             }
+
 
             if (v.getType() == VoucherType.AMOUNT) {
                 orderDiscount = orderDiscount.add(v.getValue());
