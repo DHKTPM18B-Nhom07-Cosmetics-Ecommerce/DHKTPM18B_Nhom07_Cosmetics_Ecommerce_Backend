@@ -92,7 +92,7 @@ public class SecurityConfig {
 
                 // CHO PHÉP TẤT CẢ TRONG LÚC DEV (sau này sửa lại)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/stats", "/api/accounts/management").hasAnyRole("ADMIN")
+                        .requestMatchers("/api/stats").hasRole("ADMIN")
                         .requestMatchers("/api/orders/admin/**").permitAll()
                         .requestMatchers("/api/orders", "/api/orders/**", "/api/addresses/**" ).permitAll()
                         .anyRequest().permitAll()
