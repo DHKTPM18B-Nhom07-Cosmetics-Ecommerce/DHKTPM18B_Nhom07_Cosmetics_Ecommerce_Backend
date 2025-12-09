@@ -4,6 +4,7 @@ import iuh.fit.se.cosmeticsecommercebackend.model.Customer;
 import iuh.fit.se.cosmeticsecommercebackend.model.Employee;
 import iuh.fit.se.cosmeticsecommercebackend.model.Order;
 import iuh.fit.se.cosmeticsecommercebackend.model.enums.OrderStatus;
+import iuh.fit.se.cosmeticsecommercebackend.payload.RevenueStatsRespond;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -102,4 +103,54 @@ public interface OrderRepository extends JpaRepository<Order, String> {
             @Param("status") OrderStatus status,
             @Param("fromDate") LocalDateTime fromDate
     );
+
+    /**
+     * Truy vấn lấy dữ liệu doanh thu chi tiết (ngày, tổng doanh thu, tổng đơn hàng)
+     * của các đơn hàng đã DELIVERED trong khoảng thời gian.
+     * Trả về List<Object[]>: [date, totalRevenue, totalOrders]
+     * @param startDate
+     * @param endDate
+     */
+    @Query(value = """
+        SELECT
+            DATE(o.order_date) AS order_day,
+            SUM(o.total) AS total_revenue,
+            COUNT(o.order_id) AS total_orders
+        FROM
+            orders o
+        WHERE
+            o.status = 'DELIVERED' 
+            AND o.order_date >= :startDate
+            AND o.order_date <= :endDate
+        GROUP BY
+            order_day
+        ORDER BY
+            order_day
+    """, nativeQuery = true) // <--- QUAN TRỌNG: SỬ DỤNG SQL THUẦN
+    // KIỂU TRẢ VỀ ĐƠN GIẢN NHẤT ĐỂ TRÁNH LỖI VALIDATION HQL
+    List<Object[]> findDailyRevenueAndOrders(LocalDateTime startDate, LocalDateTime endDate);
+
+    /**
+     * Truy vấn lấy Top 5 Product Variant bán chạy nhất (theo số lượng và doanh thu).
+     */
+    @Query(value = """
+        SELECT
+            od.variant_id AS variant_id,
+            SUM(od.quantity) AS total_sales,
+            SUM(od.final_price) AS total_revenue
+        FROM
+            order_details od
+        JOIN
+            orders o ON od.order_id = o.order_id
+        WHERE
+            o.status = 'DELIVERED' 
+            AND o.order_date >= :startDate
+            AND o.order_date <= :endDate
+        GROUP BY
+            od.variant_id
+        ORDER BY
+            total_sales DESC, total_revenue DESC
+        LIMIT 5
+    """, nativeQuery = true)
+    List<Object[]> findTopSellingProductVariants(LocalDateTime startDate, LocalDateTime endDate);
 }
