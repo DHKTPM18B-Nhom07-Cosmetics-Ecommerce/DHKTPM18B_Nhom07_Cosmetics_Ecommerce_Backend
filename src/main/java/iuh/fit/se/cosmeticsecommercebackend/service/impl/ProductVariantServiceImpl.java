@@ -99,4 +99,23 @@ public class ProductVariantServiceImpl implements ProductVariantService {
         // Lưu thay đổi vào cơ sở dữ liệu
         variantRepository.save(variant);
     }
+
+    @Override
+    public void decreaseStockAndIncreaseSold(Long variantId, int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Số lượng phải là số dương.");
+        }
+
+        ProductVariant variant = variantRepository.findById(variantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy biến thể id=" + variantId));
+
+        if (variant.getQuantity() < quantity) {
+            throw new IllegalStateException("Không đủ tồn kho cho biến thể: " + variant.getVariantName());
+        }
+
+        variant.setQuantity(variant.getQuantity() - quantity);
+        variant.setSold((variant.getSold() != null ? variant.getSold() : 0) + quantity);
+
+        variantRepository.save(variant);
+    }
 }

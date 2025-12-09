@@ -9,6 +9,7 @@ import iuh.fit.se.cosmeticsecommercebackend.payload.OrderDetailRequest;
 import iuh.fit.se.cosmeticsecommercebackend.repository.AddressRepository;
 import iuh.fit.se.cosmeticsecommercebackend.repository.OrderRepository;
 import iuh.fit.se.cosmeticsecommercebackend.repository.VoucherRepository;
+import iuh.fit.se.cosmeticsecommercebackend.repository.ProductVariantRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.*;
 import iuh.fit.se.cosmeticsecommercebackend.service.voucher.DiscountResult;
 import iuh.fit.se.cosmeticsecommercebackend.service.voucher.VoucherEngine;
@@ -45,7 +46,8 @@ public class OrderServiceImpl implements OrderService {
             AddressService addressService,
             ProductVariantService productVariantService,
             AddressRepository addressRepository,
-            OrderDetailService orderDetailService
+            OrderDetailService orderDetailService,
+            ProductVariantRepository productVariantRepository
     ) {
         this.orderRepo = orderRepo;
         this.customerService = customerService;
@@ -53,7 +55,10 @@ public class OrderServiceImpl implements OrderService {
         this.productVariantService = productVariantService;
         this.addressRepository = addressRepository;
         this.orderDetailService = orderDetailService;
+        this.productVariantRepository = productVariantRepository;
     }
+
+    private final ProductVariantRepository productVariantRepository;
 
     /* ===================== ORDER ID ===================== */
 
@@ -159,8 +164,12 @@ public class OrderServiceImpl implements OrderService {
 
             subtotal = subtotal.add(od.getTotalPrice());
 
-            // trừ tồn
+            // Increment SOLD and decrement Quantity
             pv.setQuantity(pv.getQuantity() - dr.getQuantity());
+            pv.setSold((pv.getSold() != null ? pv.getSold() : 0) + dr.getQuantity());
+
+            // Save explicitly to ensure persistence
+            productVariantRepository.save(pv);
 
             details.add(od);
         }

@@ -17,4 +17,5 @@ public interface ProductVariantService {
      * @param quantity Số lượng cần hoàn trả/tăng thêm
      */
     void increaseStock(Long variantId, int quantity);
+    void decreaseStockAndIncreaseSold(Long variantId, int quantity);
 }
