@@ -13,8 +13,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/reviews")
@@ -101,9 +104,32 @@ public class ReviewController {
     
     /** GET /api/reviews/customer/{customerId} : Lay danh gia theo khach hang */
     @GetMapping("/customer/{customerId}")
-    public ResponseEntity<List<Review>> getReviewsByCustomer(@PathVariable Customer customer) {
+    public ResponseEntity<?> getReviewsByCustomer(@PathVariable Long customerId) {
+        Customer customer = new Customer();
+        customer.setId(customerId);
+        
         List<Review> reviews = reviewService.findByCustomer(customer);
-        return ResponseEntity.ok(reviews);
+        
+        // Trả về danh sách Map đơn giản để tránh circular reference
+        List<Map<String, Object>> simplifiedReviews = reviews.stream()
+            .map(review -> {
+                Map<String, Object> map = new HashMap<>();
+                map.put("id", review.getId());
+                map.put("rating", review.getRating());
+                map.put("comment", review.getComment());
+                map.put("reviewDate", review.getReviewDate());
+                map.put("active", review.isActive());
+                
+                // Chỉ lấy productId, không lấy toàn bộ object
+                if (review.getProduct() != null) {
+                    map.put("productId", review.getProduct().getId());
+                }
+                
+                return map;
+            })
+            .collect(Collectors.toList());
+            
+        return ResponseEntity.ok(simplifiedReviews);
     }
 
     /** GET /api/reviews/product/{productId} : Lay danh gia theo san pham */
