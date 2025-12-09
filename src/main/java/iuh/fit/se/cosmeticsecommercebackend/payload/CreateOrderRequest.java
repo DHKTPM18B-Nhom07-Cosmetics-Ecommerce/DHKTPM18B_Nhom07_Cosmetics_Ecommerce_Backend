@@ -149,4 +149,25 @@ public class CreateOrderRequest {
     public void setVoucherCodes(List<String> voucherCodes) {
         this.voucherCodes = voucherCodes;
     }
+
+    public CreateOrderRequest() {
+    }
+
+    public CreateOrderRequest(Long customerId, Long addressId, LocalDateTime orderDate, String status, BigDecimal totalAmount, BigDecimal shippingFee, List<String> voucherCodes, List<OrderDetailRequest> orderDetails, List<Long> cartItemIds, String shippingFullName, String shippingPhone, String shippingAddress, String shippingCity, String shippingState, String shippingCountry) {
+        this.customerId = customerId;
+        this.addressId = addressId;
+        this.orderDate = orderDate;
+        this.status = status;
+        this.totalAmount = totalAmount;
+        this.shippingFee = shippingFee;
+        this.voucherCodes = voucherCodes;
+        this.orderDetails = orderDetails;
+        this.cartItemIds = cartItemIds;
+        this.shippingFullName = shippingFullName;
+        this.shippingPhone = shippingPhone;
+        this.shippingAddress = shippingAddress;
+        this.shippingCity = shippingCity;
+        this.shippingState = shippingState;
+        this.shippingCountry = shippingCountry;
+    }
 }
