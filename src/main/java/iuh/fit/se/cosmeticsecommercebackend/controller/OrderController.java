@@ -199,11 +199,18 @@ public class OrderController {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin Employee cho tài khoản: " + username));
 
         // 2. GỌI SERVICE
+        // Nếu trạng thái là CANCELLED, gọi hàm cancelByEmployee để xử lý hoàn kho (nghiệp vụ đúng)
+        if (newStatus == OrderStatus.CANCELLED) {
+            Order canceledOrder = orderService.cancelByEmployee(id, cancelReason, employee);
+            return ResponseEntity.ok(canceledOrder);
+        }
+
+        // Nếu là trạng thái khác, gọi updateStatus
         Order updatedOrder = orderService.updateStatus(id, newStatus, cancelReason, employee);
         return ResponseEntity.ok(updatedOrder);
     }
 
-    /** * PUT /api/orders/{id}/cancel: Khách hàng tự hủy đơn hàng (Chỉ cho PENDING). */
+    /** 🎯 SỬA CHỮA: PUT /api/orders/{id}/cancel: Khách hàng GỬI YÊU CẦU HỦY đơn hàng. */
     @PutMapping("/{id}/cancel")
     public ResponseEntity<Order> cancelByCustomer(
             @PathVariable String id,
@@ -211,7 +218,7 @@ public class OrderController {
             Principal principal
     ) {
         if (principal == null) {
-            throw new ResourceNotFoundException("Yêu cầu xác thực để hủy đơn hàng.");
+            return new ResponseEntity<>(null, HttpStatus.UNAUTHORIZED);
         }
         String username = principal.getName();
         Customer customer = customerService.findByAccountUsername(username);
@@ -220,8 +227,11 @@ public class OrderController {
             throw new ResourceNotFoundException("Không tìm thấy Khách hàng cho tài khoản này.");
         }
 
-        Order canceledOrder = orderService.cancelByCustomer(id, cancelReason, customer);
-        return ResponseEntity.ok(canceledOrder);
+        // GỌI HÀM MỚI: Chỉ ghi nhận yêu cầu và lý do, KHÔNG hủy ngay
+        Order requestedOrder = orderService.requestCancelByCustomer(id, cancelReason, customer);
+
+        // Trả về HTTP 200 OK để xác nhận yêu cầu đã được ghi nhận
+        return ResponseEntity.ok(requestedOrder);
     }
 
     /** * POST /api/orders/{id}/return: Yêu cầu hoàn trả (Chỉ cho DELIVERED, Cần NV xác nhận) */

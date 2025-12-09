@@ -348,27 +348,50 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public Order cancelByEmployee(String id, String reason, Employee employee) {
         Order o = findById(id);
+
+        // Kiểm tra trạng thái hợp lệ để hủy
+        if (o.getStatus() != OrderStatus.PENDING
+                && o.getStatus() != OrderStatus.CONFIRMED
+                && o.getStatus() != OrderStatus.PROCESSING) {
+            throw new IllegalStateException("Không thể hủy đơn hàng ở trạng thái " + o.getStatus().name());
+        }
+
+        // 1. HOÀN TRẢ TỒN KHO
+        orderDetailService.restoreStockForOrder(id);
+
+        // 2. Cập nhật trạng thái hủy
         o.setStatus(OrderStatus.CANCELLED);
-        o.setCancelReason(reason);
+        o.setCancelReason("HỦY BỞI NV: " + reason);
         o.setEmployee(employee);
         o.setCanceledAt(LocalDateTime.now());
         return orderRepo.save(o);
     }
 
+    /**
+     * Yêu cầu hủy đơn hàng (Dành cho Khách hàng)
+     * Chỉ ghi nhận lý do, KHÔNG thay đổi trạng thái và KHÔNG hoàn trả tồn kho ngay.
+     */
     @Override
-    public Order cancelByCustomer(String orderId, String reason, Customer customer) {
+    public Order requestCancelByCustomer(String orderId, String reason, Customer customer) {
         Order o = findById(orderId);
 
+        // 1. Chỉ có thể YÊU CẦU HỦY đối với đơn hàng PENDING
         if (o.getStatus() != OrderStatus.PENDING) {
-            throw new IllegalStateException("Chỉ hủy được đơn PENDING");
+            throw new IllegalStateException("Chỉ yêu cầu hủy được đơn PENDING");
         }
 
-        orderDetailService.restoreStockForOrder(orderId);
+        // 2. Kiểm tra quyền sở hữu
+        if (o.getCustomer() == null || !o.getCustomer().getId().equals(customer.getId())) {
+            throw new ResourceNotFoundException("Không có quyền yêu cầu hủy đơn hàng này.");
+        }
 
-        o.setStatus(OrderStatus.CANCELLED);
-        o.setCancelReason(reason);
-        o.setCanceledAt(LocalDateTime.now());
+        // 3. Ghi nhận YÊU CẦU HỦY
+        // Dùng prefix để Nhân viên dễ phân biệt với lý do hủy do NV tự nhập.
+        o.setCancelReason("Yêu cầu hủy từ KH: " + reason);
 
+        // GIỮ NGUYÊN TRẠNG THÁI PENDING, chờ Nhân viên xử lý
+
+        // 4. Cảnh báo rủi ro (giữ nguyên)
         if (customer != null && customer.getAccount() != null) {
             riskService.checkAndAlertOrderSpam(
                     customer.getAccount().getId(),
