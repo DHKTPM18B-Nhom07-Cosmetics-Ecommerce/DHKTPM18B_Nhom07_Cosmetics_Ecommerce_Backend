@@ -25,7 +25,22 @@ public class Category {
     
     @Column(nullable = false, length = 100)
     private String name;
-    
+
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private Category parent;
+
+    @OneToMany(mappedBy = "parent", fetch = FetchType.LAZY)
+    @JsonIgnore
+    private List<Category> children = new ArrayList<>();
+
+    @Column(name = "is_active")
+    private Boolean isActive = true;
+
+
     /**
      * Quan hệ 1-n với Product
      * mappedBy = "category" tham chiếu đến thuộc tính category trong Product entity
@@ -82,6 +97,48 @@ public class Category {
 
     public void setProducts(List<Product> products) {
         this.products = products;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
+    public Category getParent() {
+        return parent;
+    }
+
+    public void setParent(Category parent) {
+        this.parent = parent;
+    }
+
+    public List<Category> getChildren() {
+        return children;
+    }
+
+    public void setChildren(List<Category> children) {
+        this.children = children;
+    }
+
+    @Transient
+    public Long getParentId() {
+        return parent != null ? parent.getId() : null;
+    }
+    
+    @Transient
+    public Integer getProductCount() {
+        return products != null ? products.size() : 0;
+    }
+
+    public Boolean getIsActive() {
+        return isActive;
+    }
+
+    public void setIsActive(Boolean active) {
+        isActive = active;
     }
 
 }
