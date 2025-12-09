@@ -13,54 +13,61 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/addresses")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "*") // Đảm bảo dòng này có để tránh lỗi CORS
 public class AddressController {
 
     private final AddressService addressService;
     private final CustomerRepository customerRepository;
 
-    public AddressController(AddressService addressService,
-                             CustomerRepository customerRepository) {
+    public AddressController(AddressService addressService, CustomerRepository customerRepository) {
         this.addressService = addressService;
         this.customerRepository = customerRepository;
     }
 
-    // Lấy tất cả địa chỉ
+    // 1. Lấy tất cả địa chỉ (Admin dùng)
     @GetMapping
     public ResponseEntity<List<Address>> getAllAddresses() {
         return ResponseEntity.ok(addressService.getAll());
     }
 
-    // 🔹 Lấy danh sách địa chỉ (Frontend gửi AccountID -> Backend tìm Customer)
+    // 2. Lấy địa chỉ theo Account ID (SỬA LOGIC TẠI ĐÂY)
     @GetMapping("/customer/{accountId}")
     public ResponseEntity<List<Address>> getAddressesByAccountId(@PathVariable Long accountId) {
-        // Ưu tiên logic của nhánh HEAD (Fix lỗi ID)
+        // Tìm Customer dựa trên Account ID (Thay vì Customer ID)
         Customer customer = customerRepository.findByAccount_Id(accountId)
-                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy khách hàng với Account ID: " + accountId));
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy khách hàng sở hữu Account ID: " + accountId));
 
+        // Lấy danh sách địa chỉ của customer đó
         return ResponseEntity.ok(addressService.findByCustomerId(customer.getId()));
     }
-    // 🔹 Lấy địa chỉ mặc định
+
+    // 3. Lấy địa chỉ mặc định
     @GetMapping("/customer/{customerId}/default")
     public ResponseEntity<Address> getDefaultAddress(@PathVariable Long customerId) {
         return ResponseEntity.ok(addressService.getDefaultAddressByCustomerId(customerId));
     }
 
-    // 🔹 Tạo mới địa chỉ
+    // 4. Cập nhật địa chỉ
+    @PutMapping("/{id}")
+    public ResponseEntity<Address> updateAddress(@PathVariable Long id, @RequestBody Address updatedAddress) {
+        Address saved = addressService.update(id, updatedAddress);
+        return ResponseEntity.ok(saved);
+    }
+
+    // 5. Tạo mới địa chỉ (SỬA LOGIC QUAN TRỌNG TẠI ĐÂY)
     @PostMapping
     public ResponseEntity<Address> createAddress(@RequestBody Map<String, Object> body) {
-        // Lấy Account ID từ body
+        // Lấy Account ID mà frontend gửi lên
         Long accountId = ((Number) body.get("customerId")).longValue();
 
-        // Ưu tiên logic của nhánh HEAD (Fix lỗi ID): Tìm Customer theo AccountID
+        // --- SỬA LẠI DÒNG NÀY ---
+        // Dùng findByAccount_Id để tìm ra đúng Customer
         Customer customer = customerRepository.findByAccount_Id(accountId)
-                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy khách hàng với Account ID: " + accountId));
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy khách hàng sở hữu Account ID: " + accountId));
+        // ------------------------
 
         Address address = new Address();
-        // Nếu bên main có logic generate ID riêng thì có thể giữ lại, nếu không thì để tự động tăng
-        // address.setId(Address.generateAddressId()); // Bỏ comment dòng này nếu nhóm bạn bắt buộc dùng ID tự tạo
-
-        address.setCustomer(customer);
+        address.setCustomer(customer); // Gán customer tìm được vào địa chỉ
         address.setFullName((String) body.get("fullName"));
         address.setPhone((String) body.get("phone"));
         address.setAddress((String) body.get("address"));
@@ -68,7 +75,6 @@ public class AddressController {
         address.setState((String) body.get("state"));
         address.setCountry((String) body.get("country"));
 
-        // Xử lý an toàn cho boolean default
         Object isDefaultObj = body.get("default");
         address.setDefault(isDefaultObj != null && (boolean) isDefaultObj);
 
@@ -76,9 +82,9 @@ public class AddressController {
         return ResponseEntity.ok(saved);
     }
 
-    // DELETE
+    // 6. Xóa địa chỉ
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteAddress(@PathVariable Long id) {
         addressService.delete(id);
         return ResponseEntity.noContent().build();
     }

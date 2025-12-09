@@ -1,5 +1,12 @@
 -- Dumping data for table cosmetics_db.accounts: ~9 rows (approximately)
 use cosmetics_db;
+
+DROP TABLE IF EXISTS voucher_redemptions; -- Xóa bảng con trước
+DROP TABLE IF EXISTS customer_voucher;    -- Xóa bảng con trước
+DROP TABLE IF EXISTS voucher_products;    -- Xóa bảng con trước (nếu có)
+DROP TABLE IF EXISTS voucher_brands;      -- Xóa bảng con trước (nếu có)
+DROP TABLE IF EXISTS vouchers;
+
 -- ==================== Account ====================
 INSERT INTO accounts (created_at, disabled_reason, full_name, password, phone_number, role, status, username) VALUES
                                                                                                                   ('2024-01-15 10:30:00.000000', NULL, 'Nguyễn Văn An', '123456', '0901234567', 'ADMIN', 'ACTIVE', 'an.nguyen@example.com'), -- 1. ADMIN đang hoạt động
