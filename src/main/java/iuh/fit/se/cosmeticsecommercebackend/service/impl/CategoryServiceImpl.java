@@ -42,6 +42,8 @@ public class CategoryServiceImpl implements CategoryService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục có ID = " + id));
 
         existing.setName(categoryUpdate.getName());
+        existing.setName(categoryUpdate.getName());
+        existing.setActive(categoryUpdate.isActive());
         return categoryRepository.save(existing);
     }
 

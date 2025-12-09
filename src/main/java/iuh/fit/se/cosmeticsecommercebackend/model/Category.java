@@ -37,14 +37,31 @@ public class Category {
     private List<Product> products = new ArrayList<>();
 
     // N - N với Voucher
+    // N - N với Voucher
     @ManyToMany(mappedBy = "categories")
     @JsonIgnore
     private Set<Voucher> vouchers = new HashSet<>();
+
+    @Column(nullable = false, name = "is_active")
+    private boolean isActive = true;
 
     public Category(Long id, String name, List<Product> products, Set<Voucher> vouchers) {
 
         this.id = id;
         this.name = name;
+        this.products = products;
+        this.vouchers = vouchers;
+        this.id = id;
+        this.name = name;
+        this.products = products;
+        this.vouchers = vouchers;
+        this.isActive = true;
+    }
+
+    public Category(Long id, String name, boolean isActive, List<Product> products, Set<Voucher> vouchers) {
+        this.id = id;
+        this.name = name;
+        this.isActive = isActive;
         this.products = products;
         this.vouchers = vouchers;
     }
@@ -82,6 +99,14 @@ public class Category {
 
     public void setProducts(List<Product> products) {
         this.products = products;
+    }
+
+    public boolean isActive() {
+        return isActive;
+    }
+
+    public void setActive(boolean active) {
+        isActive = active;
     }
 
 }
