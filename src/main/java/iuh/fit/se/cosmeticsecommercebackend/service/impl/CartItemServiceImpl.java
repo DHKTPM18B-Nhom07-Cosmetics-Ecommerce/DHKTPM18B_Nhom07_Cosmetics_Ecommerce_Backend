@@ -15,6 +15,7 @@ import java.util.List;
 public class CartItemServiceImpl implements CartItemService {
 
     private final CartItemRepository cartItemRepository;
+
     private final CartRepository cartRepository; // Inject thêm cái này
 
     // Constructor Injection cả 2 Repo
@@ -23,9 +24,6 @@ public class CartItemServiceImpl implements CartItemService {
         this.cartRepository = cartRepository;
     }
 
-    public CartItemServiceImpl(CartItemRepository cartItemRepository) {
-        this.cartItemRepository = cartItemRepository;
-    }
 
     @Override
     public List<CartItem> getAllCartItems() {
