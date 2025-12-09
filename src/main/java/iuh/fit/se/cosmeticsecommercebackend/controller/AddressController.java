@@ -13,78 +13,69 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/addresses")
-@CrossOrigin(origins = "*") // Đảm bảo dòng này có để tránh lỗi CORS
 public class AddressController {
 
     private final AddressService addressService;
     private final CustomerRepository customerRepository;
 
-    public AddressController(AddressService addressService, CustomerRepository customerRepository) {
+    public AddressController(AddressService addressService,
+                             CustomerRepository customerRepository) {
         this.addressService = addressService;
         this.customerRepository = customerRepository;
     }
 
-    // 1. Lấy tất cả địa chỉ (Admin dùng)
+    // Lấy tất cả địa chỉ
     @GetMapping
     public ResponseEntity<List<Address>> getAllAddresses() {
         return ResponseEntity.ok(addressService.getAll());
     }
 
-    // 2. Lấy địa chỉ theo Account ID (SỬA LOGIC TẠI ĐÂY)
-    @GetMapping("/customer/{accountId}")
-    public ResponseEntity<List<Address>> getAddressesByAccountId(@PathVariable Long accountId) {
-        // Tìm Customer dựa trên Account ID (Thay vì Customer ID)
-        Customer customer = customerRepository.findByAccount_Id(accountId)
-                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy khách hàng sở hữu Account ID: " + accountId));
-
-        // Lấy danh sách địa chỉ của customer đó
-        return ResponseEntity.ok(addressService.findByCustomerId(customer.getId()));
+    // Lấy địa chỉ theo customer
+    @GetMapping("/customer/{customerId}")
+    public ResponseEntity<List<Address>> getByCustomer(@PathVariable Long customerId) {
+        return ResponseEntity.ok(addressService.findByCustomerId(customerId));
     }
 
-    // 3. Lấy địa chỉ mặc định
+    // Lấy địa chỉ mặc định
     @GetMapping("/customer/{customerId}/default")
-    public ResponseEntity<Address> getDefaultAddress(@PathVariable Long customerId) {
-        return ResponseEntity.ok(addressService.getDefaultAddressByCustomerId(customerId));
+    public ResponseEntity<Address> getDefault(@PathVariable Long customerId) {
+        return ResponseEntity.ok(
+                addressService.getDefaultAddressByCustomerId(customerId)
+        );
     }
 
-    // 4. Cập nhật địa chỉ
-    @PutMapping("/{id}")
-    public ResponseEntity<Address> updateAddress(@PathVariable Long id, @RequestBody Address updatedAddress) {
-        Address saved = addressService.update(id, updatedAddress);
-        return ResponseEntity.ok(saved);
-    }
-
-    // 5. Tạo mới địa chỉ (SỬA LOGIC QUAN TRỌNG TẠI ĐÂY)
+    // TẠO ĐỊA CHỈ
     @PostMapping
     public ResponseEntity<Address> createAddress(@RequestBody Map<String, Object> body) {
-        // Lấy Account ID mà frontend gửi lên
-        Long accountId = ((Number) body.get("customerId")).longValue();
-
-        // Dùng findByAccount_Id để tìm ra đúng Customer
-        Customer customer = customerRepository.findByAccount_Id(accountId)
-                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy khách hàng sở hữu Account ID: " + accountId));
-        // ------------------------
+        Long customerId = ((Number) body.get("customerId")).longValue();
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy customer id: " + customerId));
 
         Address address = new Address();
-        address.setCustomer(customer); // Gán customer tìm được vào địa chỉ
         address.setId(Address.generateAddressId());
+        address.setCustomer(customer);
         address.setFullName((String) body.get("fullName"));
         address.setPhone((String) body.get("phone"));
         address.setAddress((String) body.get("address"));
         address.setCity((String) body.get("city"));
         address.setState((String) body.get("state"));
         address.setCountry((String) body.get("country"));
-
-        Object isDefaultObj = body.get("default");
-        address.setDefault(isDefaultObj != null && (boolean) isDefaultObj);
+        address.setDefault((boolean) body.get("default"));
 
         Address saved = addressService.create(address);
         return ResponseEntity.ok(saved);
     }
 
-    // 6. Xóa địa chỉ
+    //UPDATE
+    @PutMapping("/{id}")
+    public ResponseEntity<Address> updateAddress(@PathVariable Long id,
+                                                 @RequestBody Address updated) {
+        return ResponseEntity.ok(addressService.update(id, updated));
+    }
+
+    // DELETE
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteAddress(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
         addressService.delete(id);
         return ResponseEntity.noContent().build();
     }

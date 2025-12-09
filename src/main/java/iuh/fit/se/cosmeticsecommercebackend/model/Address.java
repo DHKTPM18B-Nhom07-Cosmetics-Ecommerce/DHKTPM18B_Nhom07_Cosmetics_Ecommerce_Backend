@@ -1,6 +1,5 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
@@ -27,7 +26,6 @@ public class Address {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = true)
     @JsonBackReference
-    @JsonIgnore
     private Customer customer;
 
     @Column(nullable = true, length = 100)
@@ -132,4 +130,3 @@ public class Address {
         return Math.abs(UUID.randomUUID().getMostSignificantBits());}
 
 }
-

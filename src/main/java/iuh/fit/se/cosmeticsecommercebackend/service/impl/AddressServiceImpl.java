@@ -5,12 +5,10 @@ import iuh.fit.se.cosmeticsecommercebackend.repository.AddressRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.AddressService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
-@Transactional
 public class AddressServiceImpl implements AddressService {
     private final AddressRepository addressRepository;
 
@@ -50,11 +48,7 @@ public class AddressServiceImpl implements AddressService {
 
         // Đảm bảo chỉ có 1 địa chỉ mặc định cho mỗi customer:
         if (updatedAddress.isDefault()) {
-            // Use repository bulk update to clear other defaults for this customer
-            Long customerId = existing.getCustomer() != null ? existing.getCustomer().getId() : null;
-            if (customerId != null) {
-                addressRepository.unsetDefaultForCustomerExcept(customerId, existing.getId());
-            }
+            unsetOtherDefaultAddresses(existing.getCustomer().getId(), existing.getId());
         }
 
         // Lưu lại thay đổi
@@ -65,11 +59,15 @@ public class AddressServiceImpl implements AddressService {
      * Hủy trạng thái mặc định của các địa chỉ khác cùng customer
      */
     private void unsetOtherDefaultAddresses(Long customerId, Long excludeAddressId) {
-        // Deprecated - kept for compatibility, prefer repository.bulk updates.
-        if (customerId == null) return;
-        List<Address> customerAddresses = addressRepository.findByCustomerId(customerId);
-        customerAddresses.stream()
-                .filter(addr -> !addr.getId().equals(excludeAddressId) && addr.isDefault())
+
+        if (customerId == null) return; // guest thì bỏ qua
+
+        addressRepository.findByCustomerId(customerId)
+                .stream()
+                .filter(addr ->
+                        !addr.getId().equals(excludeAddressId)
+                                && addr.isDefault()
+                )
                 .forEach(addr -> {
                     addr.setDefault(false);
                     addressRepository.save(addr);
@@ -89,7 +87,7 @@ public class AddressServiceImpl implements AddressService {
 
     @Override
     public Address getDefaultAddressByCustomerId(Long id) {
-        return addressRepository.findDefaultByCustomerId(id)
+        return addressRepository.findByCustomerIdAndIsDefaultTrue(id)
                 .orElse(null);
     }
 }
