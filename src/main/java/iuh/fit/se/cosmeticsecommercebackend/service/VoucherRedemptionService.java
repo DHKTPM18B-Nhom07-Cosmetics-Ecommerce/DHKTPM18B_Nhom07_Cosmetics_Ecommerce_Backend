@@ -1,5 +1,7 @@
 package iuh.fit.se.cosmeticsecommercebackend.service;
 
+import iuh.fit.se.cosmeticsecommercebackend.model.Customer;
+import iuh.fit.se.cosmeticsecommercebackend.model.Voucher;
 import iuh.fit.se.cosmeticsecommercebackend.model.VoucherRedemption;
 import java.util.List;
 import java.util.Optional;
@@ -10,4 +12,7 @@ public interface VoucherRedemptionService {
     VoucherRedemption create(VoucherRedemption redemption);
     VoucherRedemption update(Long id, VoucherRedemption redemption);
     void delete(Long id);
+//thêm
+    long countByVoucher(Voucher voucher);
+    long countByVoucherAndCustomer(Voucher voucher, Customer customer);
 }
