@@ -1,10 +1,12 @@
 package iuh.fit.se.cosmeticsecommercebackend.service.impl;
 
 import iuh.fit.se.cosmeticsecommercebackend.model.Address;
+import iuh.fit.se.cosmeticsecommercebackend.model.Customer;
 import iuh.fit.se.cosmeticsecommercebackend.repository.AddressRepository;
 import iuh.fit.se.cosmeticsecommercebackend.service.AddressService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -90,4 +92,12 @@ public class AddressServiceImpl implements AddressService {
         return addressRepository.findByCustomerIdAndIsDefaultTrue(id)
                 .orElse(null);
     }
+
+    @Override
+    @Transactional
+    public void linkGuestAddresses(String phone, Customer customer) {
+        if (phone == null || customer == null) return;
+        addressRepository.linkGuestAddressToCustomer(customer, phone);
+    }
+
 }

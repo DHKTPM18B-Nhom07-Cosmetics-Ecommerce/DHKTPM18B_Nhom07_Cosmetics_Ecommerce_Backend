@@ -47,7 +47,7 @@ public interface OrderService {
     Order cancelByEmployee(String id, String cancelReason, Employee employee);
     //khach hang yeu cau huy don hang
 
-    Order cancelByCustomer(String orderId, String cancelReason, Customer customer);
+    Order requestCancelByCustomer(String orderId, String reason, Customer customer);
     //yeu cau hoan tra
     Order requestReturn(String id, String returnReason, Employee employee);
 

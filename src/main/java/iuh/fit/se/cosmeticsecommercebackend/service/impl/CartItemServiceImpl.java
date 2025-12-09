@@ -15,6 +15,7 @@ import java.util.List;
 public class CartItemServiceImpl implements CartItemService {
 
     private final CartItemRepository cartItemRepository;
+
     private final CartRepository cartRepository; // Inject thêm cái này
 
     // Constructor Injection cả 2 Repo

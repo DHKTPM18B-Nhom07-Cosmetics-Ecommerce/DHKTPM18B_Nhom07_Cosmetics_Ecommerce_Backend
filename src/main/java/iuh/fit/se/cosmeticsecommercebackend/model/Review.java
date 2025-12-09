@@ -1,5 +1,6 @@
 package iuh.fit.se.cosmeticsecommercebackend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
@@ -28,6 +29,7 @@ public class Review {
      * Quan hệ n-1 với Customer
      * Nhiều Review thuộc về 1 Customer
      */
+    @JsonIgnoreProperties({"reviews", "orders", "addresses", "cart", "account"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
@@ -36,6 +38,7 @@ public class Review {
      * Quan hệ n-1 với Product
      * Nhiều Review thuộc về 1 Product
      */
+    @JsonIgnoreProperties({"reviews", "variants", "category", "brand"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;

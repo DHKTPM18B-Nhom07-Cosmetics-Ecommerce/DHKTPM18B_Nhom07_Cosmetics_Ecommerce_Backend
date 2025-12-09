@@ -25,22 +25,7 @@ public class Category {
     
     @Column(nullable = false, length = 100)
     private String name;
-
-    @Column(name = "image_url", length = 500)
-    private String imageUrl;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_id")
-    private Category parent;
-
-    @OneToMany(mappedBy = "parent", fetch = FetchType.LAZY)
-    @JsonIgnore
-    private List<Category> children = new ArrayList<>();
-
-    @Column(name = "is_active")
-    private Boolean isActive = true;
-
-
+    
     /**
      * Quan hệ 1-n với Product
      * mappedBy = "category" tham chiếu đến thuộc tính category trong Product entity
@@ -52,14 +37,31 @@ public class Category {
     private List<Product> products = new ArrayList<>();
 
     // N - N với Voucher
+    // N - N với Voucher
     @ManyToMany(mappedBy = "categories")
     @JsonIgnore
     private Set<Voucher> vouchers = new HashSet<>();
+
+    @Column(nullable = false, name = "is_active")
+    private boolean isActive = true;
 
     public Category(Long id, String name, List<Product> products, Set<Voucher> vouchers) {
 
         this.id = id;
         this.name = name;
+        this.products = products;
+        this.vouchers = vouchers;
+        this.id = id;
+        this.name = name;
+        this.products = products;
+        this.vouchers = vouchers;
+        this.isActive = true;
+    }
+
+    public Category(Long id, String name, boolean isActive, List<Product> products, Set<Voucher> vouchers) {
+        this.id = id;
+        this.name = name;
+        this.isActive = isActive;
         this.products = products;
         this.vouchers = vouchers;
     }
@@ -99,45 +101,11 @@ public class Category {
         this.products = products;
     }
 
-    public String getImageUrl() {
-        return imageUrl;
-    }
-
-    public void setImageUrl(String imageUrl) {
-        this.imageUrl = imageUrl;
-    }
-
-    public Category getParent() {
-        return parent;
-    }
-
-    public void setParent(Category parent) {
-        this.parent = parent;
-    }
-
-    public List<Category> getChildren() {
-        return children;
-    }
-
-    public void setChildren(List<Category> children) {
-        this.children = children;
-    }
-
-    @Transient
-    public Long getParentId() {
-        return parent != null ? parent.getId() : null;
-    }
-    
-    @Transient
-    public Integer getProductCount() {
-        return products != null ? products.size() : 0;
-    }
-
-    public Boolean getIsActive() {
+    public boolean isActive() {
         return isActive;
     }
 
-    public void setIsActive(Boolean active) {
+    public void setActive(boolean active) {
         isActive = active;
     }
 
